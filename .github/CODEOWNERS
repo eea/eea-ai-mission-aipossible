@@ -1,0 +1,7 @@
+# CODEOWNERS
+# Specify users or teams responsible for code in this repository.
+# Format: path username or team
+# Example:
+# *       @your-github-username
+
+*       @nikolaos-paximadakis-eea
