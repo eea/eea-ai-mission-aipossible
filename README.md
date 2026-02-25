@@ -1,4 +1,4 @@
-# mission_aipossible
+# Mission AIpossible
 
 A lightweight pipeline to collect and analyse 'EU Mission on Adaptation' related data.
 
