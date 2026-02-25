@@ -1,5 +1,7 @@
 # Mission AIpossible
 
+<img src="assets/images/Mission_AIpossible_logo.png" alt="Mission AIpossible logo" width="240">
+
 A lightweight pipeline to collect and analyse 'EU Mission on Adaptation' related data.
 
 ## Setup
