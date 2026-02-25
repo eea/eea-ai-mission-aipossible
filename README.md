@@ -1,6 +1,6 @@
 # mission_aipossible
 
-Scrapy project for extracting Mission stories.
+A lightweight pipeline to collect and analyse 'EU Mission on Adaptation' related data.
 
 ## Setup
 
