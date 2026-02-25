@@ -1,0 +1,66 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Type checker cache
+.mypy_cache/
+
+# Scrapy
+*.egg-info/
+
+# Output data
+data/
+
+# Test and tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# Local data/artifacts
+*.log
+*.sqlite
+*.db
+.ipynb_checkpoints/
+
+# Secrets
+.env
+.env.keys
+.env.openai
+.env.openai.keys
+.env.eea
+.env.eea.keys
+
+# Prompt files (keep .example in git)
+analysis/prompts/*.txt
+pre_analysis/prompts/*.txt
+
+# AI-related markdown docs
+AI_GUIDE.md
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+COPILOT.md
+.cursor/AGENTS.md
+.github/copilot-instructions.md
+
+# Developer documentation
+docs/developer/*
+.flake8

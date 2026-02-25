@@ -1,0 +1,15 @@
+RESPONSE FORMAT EXAMPLE
+
+Purpose:
+- Define the exact JSON schema the model must output.
+- Specify key names, value types, and required fields.
+- Provide rules for missing values.
+
+Template:
+{
+  "<key>": "<value>"
+}
+
+Rules:
+- Output ONLY JSON.
+- Keep keys exactly as specified.

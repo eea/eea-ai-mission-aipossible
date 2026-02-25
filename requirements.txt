@@ -1,0 +1,7 @@
+scrapy==2.13.4
+scrapy-playwright==0.0.44
+playwright==1.57.0
+pytest==8.4.2
+openpyxl==3.1.5
+openai
+pydantic>=2.0.0,<3.0.0

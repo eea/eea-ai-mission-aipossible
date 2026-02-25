@@ -1,0 +1,58 @@
+[project]
+name = "mission_aipossible"
+version = "0.1.0"
+description = "AI project for scraping and analyzing Mission related data."
+readme = "README.md"
+authors = [
+    { name = "Nikolaos Pximadakis", email = "nikolaos.paximadakis@eea.europa.eu" },
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+dependencies = [
+    "scrapy==2.13.4",
+    "scrapy-playwright==0.0.44",
+    "playwright==1.57.0",
+    "pytest==8.4.2",
+    "openpyxl==3.1.5",
+    "openai",
+    "pydantic>=2.0.0,<3.0.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+urls = { "Homepage" = "https://github.com/eea/eea-ai-mission-aipossible" }
+keywords = [
+    "climate",
+    "adaptation stories",
+    "spider",
+    "eea",
+    "mission on adaptation",
+    "eu mission on adaptation to climate change",
+    "climate change",
+    "european environment agency",
+    "data extraction",
+    "web scraping",
+]
+[tool.black]
+line-length = 120
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C", "D", "N", "Q", "RUF"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.isort]
+profile = "black"
+line_length = 120
