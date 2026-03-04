@@ -47,6 +47,7 @@ Thumbs.db
 .env.openai.keys
 .env.eea
 .env.eea.keys
+.env.api
 
 # Prompt files (keep .example in git)
 analysis/prompts/*.txt

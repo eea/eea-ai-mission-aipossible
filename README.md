@@ -78,6 +78,14 @@ Overwrite existing analysis outputs:
 python -m scripts.run_analysis --input data/pages --output data/analysis --max-items 5 --overwrite
 ```
 
+Create a timestamped output subfolder (for example `data/analysis/20260227_143015`):
+
+```powershell
+python -m scripts.run_analysis --input data/pages --output data/analysis --max-items 5 --timestamped-output-dir
+```
+
+If you combine `--timestamped-output-dir` with `--overwrite`, the script prints a warning because each run writes to a new folder, so overwrite has no practical effect.
+
 Dry run (no files written):
 
 ```powershell
@@ -90,18 +98,93 @@ Select provider and model:
 python -m scripts.run_analysis --provider openai --model gpt-4o --input data/pages --output data/analysis
 ```
 
+Use the mock provider (no API calls, no token usage):
+
+```powershell
+python -m scripts.run_analysis --provider mock --input data/pages --output data/analysis --max-items 5
+```
+
 Example for using inside the Virtual Machine of EEA
 
 ```powershell
 python -m scripts.run_analysis --provider eea --input data/pages --output data/analysis --max-items 5
 ```
 
-Defaults for `--model` and `--api-key` can be read from provider-specific files:
+## Analysis API
+
+Run the API server:
+
+```powershell
+uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+With plain `uvicorn`, set environment variables before startup:
+
+```powershell
+$env:API_INPUT_DIR="data/pages"; $env:API_OUTPUT_DIR="data/analysis"; uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Run the API server with configurable default input/output directories:
+
+```powershell
+python -m scripts.run_analysis_api --host 127.0.0.1 --port 8000 --reload --input-dir C:/absolute/path/to/data/pages --output-dir C:/absolute/path/to/data/analysis --export-dir C:/absolute/path/to/data/exports
+```
+
+You can also keep defaults in a config file (`.env.api` by default):
+
+```text
+API_INPUT_DIR=C:/absolute/path/to/eea-ai-mission-aipossible/data/pages
+API_OUTPUT_DIR=C:/absolute/path/to/eea-ai-mission-aipossible/data/analysis
+API_EXPORT_DIR=C:/absolute/path/to/eea-ai-mission-aipossible/data/exports
+API_PROVIDER=mock
+# API_MODEL=mock-model
+# API_API_KEY=
+```
+
+When `--input-dir`, `--output-dir`, or `--export-dir` is passed, it overrides config-file values for that server run.
+When `--provider`, `--model`, or `--api-key` is passed, it overrides `API_PROVIDER`, `API_MODEL`, or `API_API_KEY`.
+If you do not pass `--config-file`, the server looks for `.env.api` in the repo root and exits with an error if it is missing.
+`/v1/analysis/runs` fails with `404` if configured `API_INPUT_DIR` or `API_OUTPUT_DIR` does not exist.
+`/v1/analysis/runs` returns `400` with a clear message if provider credentials are missing
+(for example missing `.env.<provider>.keys` and no `API_API_KEY` override).
+
+Health check:
+
+```powershell
+Invoke-RestMethod -Method GET http://127.0.0.1:8000/health
+```
+
+Run analysis (sync):
+
+```powershell
+Invoke-RestMethod -Method POST http://127.0.0.1:8000/v1/analysis/runs -ContentType "application/json" -Body '{"max_items":3}'
+```
+
+The response includes `run_id`, which is the folder name created under `data/analysis` for that run.
+
+Provider/model/api key for runs are configured at API server level (`.env.api` or `scripts.run_analysis_api` args), not in the run request payload.
+The run request payload currently accepts only `max_items` (optional).
+
+Runs are written into timestamped output subfolders (`output_dir/YYYYMMDD_HHMMSS`) by default.
+
+Download all analysis files for a run as ZIP:
+
+```powershell
+Invoke-WebRequest -Method GET "http://127.0.0.1:8000/v1/analysis/runs/<run_id>/download" -OutFile "run_<run_id>.zip"
+```
+
+Download Excel export for one run folder:
+
+```powershell
+Invoke-WebRequest -Method GET "http://127.0.0.1:8000/v1/analysis/export/excel?run_id=<run_id>" -OutFile "analysis_<run_id>.xlsx"
+```
+
+The API writes the workbook to `API_EXPORT_DIR/<run_id>/analysis_<run_id>.xlsx` and then streams that same file in the response.
+
+Provider-specific defaults still come from:
 
 - `.env.openai` and `.env.openai.keys`
 - `.env.eea` and `.env.eea.keys`
-
-You can also set `API_URL` in the provider `.env` file or pass `--api-url`.
 
 Use the EEA provider:
 
@@ -115,6 +198,18 @@ Export analysis JSON files to Excel:
 
 ```powershell
 python -m scripts.export_analysis_excel --input data/analysis --output data/exports/analysis.xlsx
+```
+
+Export one timestamped run folder to Excel:
+
+```powershell
+python -m scripts.export_analysis_excel --input data/analysis --run-id 20260227_143015 --output data/exports/run_20260227_143015.xlsx
+```
+
+Disable default formatting options:
+
+```powershell
+python -m scripts.export_analysis_excel --input data/analysis --output data/exports/analysis_plain.xlsx --no-header-bold --no-auto-width --no-wrap-text --no-freeze-panes
 ```
 
 Export `ai_result` to Markdown files:

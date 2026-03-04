@@ -22,7 +22,7 @@ This project has two main stages:
 - `analysis/analyzer.py`  
   Batch analysis runner with skip/overwrite/dry-run behavior.
 - `analysis/clients/`  
-  Provider clients and factory (OpenAI and EEA).
+  Provider clients and factory (Mock, OpenAI, and EEA).
 
 ## Providers
 
@@ -31,6 +31,16 @@ Provider settings come from:
 
 - `.env.<provider>`: `MODEL`, `API_URL`
 - `.env.<provider>.keys`: `API_KEY`
+
+`mock` works without real API credentials and is intended for local/API testing.
+
+For the Analysis API (`/v1/analysis/runs`), provider/model/key are configured at server level via `.env.api`
+(`API_PROVIDER`, `API_MODEL`, `API_API_KEY`) or overridden by `scripts/run_analysis_api.py` arguments.
+The run payload itself is minimal and currently accepts only `max_items` (optional).
+
+API run input/output directories are configured at server level via `.env.api`
+(`API_INPUT_DIR`, `API_OUTPUT_DIR`) or startup arguments.
+Excel export location is configured with `API_EXPORT_DIR`.
 
 ## Storage
 

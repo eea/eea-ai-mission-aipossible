@@ -1,6 +1,7 @@
 """CLI entry point for running AI analysis over saved pages."""
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 
 from analysis.analyzer import run_batch
@@ -19,7 +20,7 @@ def parse_args() -> argparse.Namespace:
             --input: Input directory with page JSON files.
             --output: Output directory for analysis JSON files.
             --max-items: Maximum number of pages to analyze.
-            --provider: AI provider name (openai or eea).
+            --provider: AI provider name (mock, openai, or eea).
             --model: AI model name (overrides .env MODEL).
             --api-url: API URL (overrides .env API_URL).
             --api-key: API key (overrides .env.keys API_KEY).
@@ -53,8 +54,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--provider",
-        default="openai",
-        help="AI provider name (openai or eea).",
+        default="mock",
+        help="AI provider name (mock, openai, or eea).",
     )
     parser.add_argument(
         "--model",
@@ -91,11 +92,24 @@ def parse_args() -> argparse.Namespace:
         help="Overwrite existing analysis files.",
     )
     parser.add_argument(
+        "--timestamped-output-dir",
+        action="store_true",
+        help="Create a date-time subfolder inside --output and store run results there.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be processed without writing outputs.",
     )
     return parser.parse_args()
+
+
+def resolve_output_dir(output: str, timestamped_output_dir: bool) -> Path:
+    base_output_dir = Path(output)
+    if not timestamped_output_dir:
+        return base_output_dir
+    folder_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return base_output_dir / folder_name
 
 
 def main() -> int:
@@ -112,6 +126,13 @@ def main() -> int:
     api_url = args.api_url or env_values.get("API_URL") or ""
     api_key = args.api_key or key_values.get("API_KEY") or key_values.get("AI_API_KEY") or ""
     prompts_dir = (repo_root / args.prompts_dir).resolve()
+    output_dir = resolve_output_dir(args.output, args.timestamped_output_dir)
+    if args.timestamped_output_dir and args.overwrite:
+        print(
+            "warning: --timestamped-output-dir creates a new folder on each run; "
+            "--overwrite does not make a difference."
+        )
+
     client = get_client(
         provider=args.provider,
         api_key=api_key,
@@ -124,8 +145,7 @@ def main() -> int:
         from analysis.utils import load_page_json, output_path_for_url
         page_path = Path(args.file)
         page = load_page_json(page_path)
-        output_path = Path(args.output)
-        output_path_file = output_path_for_url(output_path, page.get("url", ""))
+        output_path_file = output_path_for_url(output_dir, page.get("url", ""))
         from analysis.analyzer import analyze_page
         # Check if file exists and should be skipped
         import sys
@@ -135,14 +155,14 @@ def main() -> int:
             return 0
         analyze_page(
             page_path,
-            output_path,
+            output_dir,
             client,
             overwrite=args.overwrite
         )
     else:
         run_batch(
             input_dir=Path(args.input),
-            output_dir=Path(args.output),
+            output_dir=output_dir,
             client=client,
             max_items=args.max_items,
             verbose=not args.quiet,

@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 import openpyxl
+from analysis.utils import parse_answers
+from openpyxl.styles import Alignment
 from openpyxl.styles import Font
 
 
@@ -13,6 +15,10 @@ def export_analysis_to_excel(
     overwrite: bool = False,
     verbose: bool = True,
     dry_run: bool = False,
+    header_bold: bool = True,
+    auto_width: bool = True,
+    wrap_text: bool = True,
+    freeze_panes: str | None = "A2",
 ) -> None:
     """Export analysis JSON files to a single Excel workbook.
 
@@ -22,6 +28,10 @@ def export_analysis_to_excel(
         overwrite: If True, overwrite existing output.
         verbose: If True, print progress messages.
         dry_run: If True, simulate the export without writing outputs.
+        header_bold: If True, apply bold style to header row.
+        auto_width: If True, auto-size column widths based on cell content.
+        wrap_text: If True, enable wrapped text for body cells.
+        freeze_panes: Excel freeze panes reference (e.g. "A2"), or None to disable.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     files = sorted(input_dir.glob("*.json"))
@@ -42,18 +52,25 @@ def export_analysis_to_excel(
         data = json.loads(path.read_text(encoding="utf-8"))
         data["source_file"] = path.name  # Add the filename as a new field
         answers = data.get("answers")
+        if not isinstance(answers, dict):
+            parsed = parse_answers(str(data.get("ai_result") or ""))
+            if isinstance(parsed, dict):
+                answers = parsed
+                data["answers"] = parsed
         if isinstance(answers, dict):
             answer_keys.update(str(key) for key in answers.keys())
         rows.append(data)
 
     ordered_answer_keys = sorted(answer_keys)
+    if not ordered_answer_keys:
+        ordered_answer_keys = [f"Answer {index}" for index in range(1, 11)]
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     if sheet is None:
         raise RuntimeError("Failed to create Excel worksheet.")
     sheet.title = "Analysis"
     sheet.append(["url", "title", "source_file", *ordered_answer_keys])
-    header_font = Font(bold=True)
+    header_font = Font(bold=header_bold)
     for cell in sheet[1]:
         cell.font = header_font
 
@@ -70,6 +87,25 @@ def export_analysis_to_excel(
             value = answers.get(key, "")
             row_values.append("" if value is None else str(value))
         sheet.append(row_values)
+
+    if freeze_panes:
+        sheet.freeze_panes = freeze_panes
+
+    if wrap_text:
+        wrapped_alignment = Alignment(wrap_text=True, vertical="top")
+        for row in sheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.alignment = wrapped_alignment
+
+    if auto_width:
+        for column in sheet.columns:
+            max_length = 0
+            for cell in column:
+                value = "" if cell.value is None else str(cell.value)
+                if len(value) > max_length:
+                    max_length = len(value)
+            adjusted = min(max(max_length + 2, 10), 100)
+            sheet.column_dimensions[column[0].column_letter].width = adjusted
 
     workbook.save(output_path)
     if verbose:

@@ -67,8 +67,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--provider",
-        default="openai",
-        help="AI provider name (openai or eea).",
+        default="mock",
+        help="AI provider name (mock, openai, or eea).",
     )
     parser.add_argument(
         "--model",
