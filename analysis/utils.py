@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -57,13 +58,24 @@ def parse_answers(result: str) -> dict[str, str] | None:
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
-        return None
-    if not isinstance(data, dict):
-        return None
-    answers = data.get("answers")
-    if not isinstance(answers, dict):
-        return None
-    return {str(key): "" if value is None else str(value) for key, value in answers.items()}
+        data = None
+
+    if isinstance(data, dict):
+        answers = data.get("answers")
+        if isinstance(answers, dict):
+            return {str(key): "" if value is None else str(value) for key, value in answers.items()}
+        # Also accept direct key-value objects as answers payloads.
+        return {str(key): "" if value is None else str(value) for key, value in data.items()}
+
+    parsed: dict[str, str] = {}
+    pattern = re.compile(r"^\s*Q(\d+)\s*:\s*(.*)\s*$", flags=re.IGNORECASE)
+    for line in cleaned.splitlines():
+        match = pattern.match(line)
+        if not match:
+            continue
+        index = int(match.group(1))
+        parsed[f"Answer {index}"] = match.group(2).strip()
+    return parsed or None
 
 
 def output_path_for_url(output_dir: Path, url: str) -> Path:

@@ -2,6 +2,7 @@
 
 import json
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -76,6 +77,27 @@ def analyze_page(
     return output_path, True, analysis_elapsed_seconds
 
 
+@dataclass
+class BatchItemResult:
+    """Per-page batch execution details."""
+
+    page_path: str
+    output_path: str
+    url: str
+    saved: bool
+    elapsed_seconds: float | None
+
+
+@dataclass
+class BatchRunStats:
+    """Summary metrics for a batch run."""
+
+    processed: int
+    skipped: int
+    total_elapsed_seconds: float
+    items: list[BatchItemResult]
+
+
 def run_batch(
     input_dir: Path,
     output_dir: Path,
@@ -84,21 +106,33 @@ def run_batch(
     verbose: bool = True,
     overwrite: bool = False,
     dry_run: bool = False,
-) -> None:
+) -> BatchRunStats:
     """Run analysis over a batch of saved pages with minimal console output."""
     count = 0
     skipped = 0
     total_elapsed_seconds = 0.0
+    items: list[BatchItemResult] = []
     for page_path in iter_pages(input_dir):
         page = load_page_json(page_path)
-        output_path = output_path_for_url(output_dir, page.get("url", ""))
+        url = str(page.get("url") or "")
+        output_path = output_path_for_url(output_dir, url)
         if dry_run:
+            saved = False
             if not overwrite and should_skip(output_path):
                 skipped += 1
                 if verbose:
                     print(f"skip: {output_path.name}")
             elif verbose:
                 print(f"would save: {output_path.name}")
+            items.append(
+                BatchItemResult(
+                    page_path=str(page_path),
+                    output_path=str(output_path),
+                    url=url,
+                    saved=saved,
+                    elapsed_seconds=None,
+                )
+            )
             count += 1
             if max_items and count >= max_items:
                 break
@@ -115,6 +149,15 @@ def run_batch(
             print(f"saved: {output_path.name}")
         if elapsed is not None:
             total_elapsed_seconds += elapsed
+        items.append(
+            BatchItemResult(
+                page_path=str(page_path),
+                output_path=str(output_path),
+                url=url,
+                saved=saved,
+                elapsed_seconds=elapsed,
+            )
+        )
         count += 1
         if max_items and count >= max_items:
             break
@@ -126,3 +169,9 @@ def run_batch(
             f"total_elapsed_seconds={total_elapsed_seconds:.2f} "
             f"total_elapsed_minutes={total_minutes:.2f}"
         )
+    return BatchRunStats(
+        processed=count,
+        skipped=skipped,
+        total_elapsed_seconds=total_elapsed_seconds,
+        items=items,
+    )
