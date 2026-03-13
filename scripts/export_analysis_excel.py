@@ -1,8 +1,10 @@
 """Script to export analysis JSON files to a single Excel workbook."""
 
 import argparse
+import sys
 from pathlib import Path
 
+from analysis.clients.env_loader import load_env_file
 from exporters.analysis_excel_exporter import export_analysis_to_excel
 
 
@@ -12,15 +14,19 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
+    repo_root = Path(__file__).resolve().parents[1]
+    env_values = load_env_file(repo_root / ".env")
+    default_input_dir = env_values.get("OUTPUT_DIR", "data/analysis")
+    default_export_dir = env_values.get("EXPORT_DIR", "data/exports")
     parser = argparse.ArgumentParser(description="Export analysis JSON files to a single Excel workbook.")
     parser.add_argument(
         "--input",
-        default="data/analysis",
+        default=default_input_dir,
         help="Input directory with analysis JSON files.",
     )
     parser.add_argument(
         "--output",
-        default="data/exports/analysis.xlsx",
+        default=str(Path(default_export_dir) / "analysis.xlsx"),
         help="Output Excel file path.",
     )
     parser.add_argument(
@@ -80,13 +86,18 @@ def main() -> int:
     """
     args = parse_args()
     input_dir = Path(args.input)
+    output_path = Path(args.output)
     if args.run_id:
         input_dir = input_dir / args.run_id
+        if not input_dir.is_dir():
+            print(f"Error: No analysis folder found for run_id '{args.run_id}': {input_dir}", file=sys.stderr)
+            return 1
+        output_path = output_path.parent / args.run_id / output_path.name
     freeze_panes = None if args.no_freeze_panes else args.freeze_panes
 
     export_analysis_to_excel(
         input_dir=input_dir,
-        output_path=Path(args.output),
+        output_path=output_path,
         overwrite=args.overwrite,
         verbose=not args.quiet,
         dry_run=args.dry_run,

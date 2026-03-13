@@ -37,19 +37,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--reload", action="store_true", help="Enable auto reload")
     parser.add_argument(
-        "--input-dir",
-        default=None,
-        help="Default input directory for analysis runs (overrides config file API_INPUT_DIR).",
-    )
-    parser.add_argument(
         "--output-dir",
         default=None,
-        help="Default output directory for analysis/results (overrides config file API_OUTPUT_DIR).",
+        help="Default output directory for analysis/results (overrides config file OUTPUT_DIR).",
     )
     parser.add_argument(
         "--export-dir",
         default=None,
-        help="Default export directory for API Excel exports (overrides config file API_EXPORT_DIR).",
+        help="Default export directory for API Excel exports (overrides config file EXPORT_DIR).",
     )
     parser.add_argument(
         "--config-file",
@@ -59,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--provider",
         default=None,
-        help="Default provider for /v1/analysis/runs (overrides config file API_PROVIDER).",
+        help="Default provider for /v1/analysis/runs (overrides config file PROVIDER).",
     )
     parser.add_argument(
         "--model",
@@ -91,14 +86,12 @@ def main() -> int:
         )
 
     os.environ["MISSION_CONFIG_FILE"] = str(config_path)
-    if args.input_dir:
-        os.environ["API_INPUT_DIR"] = args.input_dir
     if args.output_dir:
-        os.environ["API_OUTPUT_DIR"] = args.output_dir
+        os.environ["OUTPUT_DIR"] = args.output_dir
     if args.export_dir:
-        os.environ["API_EXPORT_DIR"] = args.export_dir
+        os.environ["EXPORT_DIR"] = args.export_dir
     if args.provider:
-        os.environ["API_PROVIDER"] = args.provider
+        os.environ["PROVIDER"] = args.provider
     if args.model:
         os.environ["API_MODEL"] = args.model
     if args.api_key:

@@ -8,10 +8,9 @@ def test_main_sets_config_and_dir_overrides(monkeypatch, tmp_path):
     config_file = tmp_path / ".env.api"
     config_file.write_text(
         (
-            "API_INPUT_DIR=data/pages\n"
-            "API_OUTPUT_DIR=data/analysis\n"
-            "API_EXPORT_DIR=data/exports\n"
-            "API_PROVIDER=mock\n"
+            "OUTPUT_DIR=data/analysis\n"
+            "EXPORT_DIR=data/exports\n"
+            "PROVIDER=mock\n"
             "API_MODEL=mock-model\n"
         ),
         encoding="utf-8",
@@ -35,8 +34,6 @@ def test_main_sets_config_and_dir_overrides(monkeypatch, tmp_path):
             "8000",
             "--config-file",
             str(config_file),
-            "--input-dir",
-            "data/pages_custom",
             "--output-dir",
             "data/analysis_custom",
             "--export-dir",
@@ -58,10 +55,9 @@ def test_main_sets_config_and_dir_overrides(monkeypatch, tmp_path):
     assert captured["port"] == 8000
     assert captured["reload"] is False
     assert os.environ["MISSION_CONFIG_FILE"] == str(config_file)
-    assert os.environ["API_INPUT_DIR"] == "data/pages_custom"
-    assert os.environ["API_OUTPUT_DIR"] == "data/analysis_custom"
-    assert os.environ["API_EXPORT_DIR"] == "data/exports_custom"
-    assert os.environ["API_PROVIDER"] == "openai"
+    assert os.environ["OUTPUT_DIR"] == "data/analysis_custom"
+    assert os.environ["EXPORT_DIR"] == "data/exports_custom"
+    assert os.environ["PROVIDER"] == "openai"
     assert os.environ["API_MODEL"] == "gpt-4o-mini"
     assert os.environ["API_API_KEY"] == "key-123"
 

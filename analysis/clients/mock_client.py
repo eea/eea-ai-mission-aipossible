@@ -8,9 +8,24 @@ from analysis.clients.base import BaseAIClient
 class MockClient(BaseAIClient):
     """Deterministic mock provider that never calls external services."""
 
-    def __init__(self, api_key: str, model: str, api_url: str, prompts_dir: Path):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        api_url: str,
+        prompts_dir: Path,
+        user_prompt_template: str | None = None,
+        system_prompt_template: str | None = None,
+    ):
         resolved_model = model or "mock-model"
-        super().__init__(api_key, resolved_model, api_url, prompts_dir)
+        super().__init__(
+            api_key,
+            resolved_model,
+            api_url,
+            prompts_dir,
+            user_prompt_template=user_prompt_template,
+            system_prompt_template=system_prompt_template,
+        )
 
     def analyze(self, text: str) -> dict:
         user_prompt = self._render_user_prompt(text)

@@ -28,7 +28,13 @@ def should_skip(output_path: Path) -> bool:
 
 
 def analyze_page(
-    page_path: Path, output_dir: Path, client, overwrite: bool = False
+    page_path: Path,
+    output_dir: Path,
+    client,
+    overwrite: bool = False,
+    use_case: str | None = None,
+    source_type: str = "pages",
+    source_path: str | None = None,
 ) -> tuple[Path, bool, float | None]:
     """Analyze a single page and write output JSON, returning (path, saved, elapsed)."""
     page = load_page_json(page_path)
@@ -67,6 +73,11 @@ def analyze_page(
         "prompt_version": ai_payload.get("prompt_version"),
         "ai_result": raw_result,
         "answers": answers,
+        "source": {
+            "use_case": use_case,
+            "source_type": source_type,
+            "source_path": source_path,
+        },
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -106,6 +117,9 @@ def run_batch(
     verbose: bool = True,
     overwrite: bool = False,
     dry_run: bool = False,
+    use_case: str | None = None,
+    source_type: str = "pages",
+    source_path: str | None = None,
 ) -> BatchRunStats:
     """Run analysis over a batch of saved pages with minimal console output."""
     count = 0
@@ -139,7 +153,13 @@ def run_batch(
             continue
 
         output_path, saved, elapsed = analyze_page(
-            page_path, output_dir, client, overwrite=overwrite
+            page_path,
+            output_dir,
+            client,
+            overwrite=overwrite,
+            use_case=use_case,
+            source_type=source_type,
+            source_path=source_path or str(input_dir),
         )
         if not saved:
             skipped += 1

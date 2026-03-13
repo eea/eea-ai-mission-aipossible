@@ -33,13 +33,14 @@ def _read_env_file_value(key: str) -> str | None:
     return None
 
 
-def get_str_setting(key: str, default: str = "") -> str:
-    value = os.getenv(key)
-    if value is None:
-        value = _read_env_file_value(key)
-    if value is None:
-        return default
-    return value.strip()
+def get_str_setting(key: str, default: str = "", aliases: tuple[str, ...] = ()) -> str:
+    for candidate in (key, *aliases):
+        value = os.getenv(candidate)
+        if value is None:
+            value = _read_env_file_value(candidate)
+        if value is not None:
+            return value.strip()
+    return default
 
 
 def get_bool_setting(key: str, default: bool = False) -> bool:
