@@ -7,7 +7,7 @@ authors = [
     { name = "Nikolaos Pximadakis", email = "nikolaos.paximadakis@eea.europa.eu" },
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "scrapy==2.13.4",
     "scrapy-playwright==0.0.44",
