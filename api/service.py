@@ -122,6 +122,14 @@ def _load_use_case_presets() -> dict[str, Any]:
     return loaded
 
 
+def get_use_case_names() -> list[str]:
+    """Return the list of configured use-case preset names."""
+    try:
+        return list(_load_use_case_presets().keys())
+    except UseCaseConfigurationError:
+        return []
+
+
 def _resolve_use_case(use_case: str) -> UseCaseConfig:
     use_case_name = _normalize_optional_str(use_case)
     if not use_case_name:

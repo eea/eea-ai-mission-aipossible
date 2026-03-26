@@ -6,6 +6,7 @@ import shutil
 
 from fastapi import BackgroundTasks
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.models import (
@@ -13,7 +14,7 @@ from api.models import (
     AnalysisRunResponse,
     HealthResponse,
 )
-from api.service import REPO_ROOT, get_default_output_dir, start_run
+from api.service import REPO_ROOT, get_default_output_dir, get_use_case_names, start_run
 from api.service import (
     ProviderRequestError,
     UseCaseConfigurationError,
@@ -24,12 +25,32 @@ from api.service import (
 
 app = FastAPI(
     title="Mission AIpossible Analysis API",
-    version="0.1.0",
+    version="0.2.0",
     description=(
         "API for running climate-analysis jobs from preset use cases, "
         "downloading run archives, and exporting run results to Excel."
     ),
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get(
+    "/v1/analysis/use-cases",
+    response_model=list[str],
+    tags=["Analysis Runs"],
+    summary="List Use Cases",
+    description="Returns the names of all configured use-case presets.",
+)
+def list_use_cases() -> list[str]:
+    """Return available use-case preset names from config."""
+    return get_use_case_names()
+
 
 @app.get(
     "/health",
@@ -96,7 +117,7 @@ async def run_analysis_with_prompt_file(
     prompt_file: UploadFile = File(...),
     use_case: str = Form(
         ...,
-        description="The use-case name. At present, the following use cases are supported: 'adaptation_stories', 'question_2_1_1_column_7', and 'question_4_8_column_7'.",
+        description="The use-case name (must match a key in config/analysis_use_cases.json).",
     ),
     max_items: int | None = Form(
         default=None,
