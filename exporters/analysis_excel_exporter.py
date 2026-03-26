@@ -48,6 +48,8 @@ def export_analysis_to_excel(
 
     rows = []
     answer_keys: set[str] = set()
+    row_identifier_column_name: str | None = None
+    summary_column_name: str | None = None
     for path in files:
         data = json.loads(path.read_text(encoding="utf-8"))
         data["source_file"] = path.name  # Add the filename as a new field
@@ -59,6 +61,11 @@ def export_analysis_to_excel(
                 data["answers"] = parsed
         if isinstance(answers, dict):
             answer_keys.update(str(key) for key in answers.keys())
+        source = data.get("source") or {}
+        if row_identifier_column_name is None:
+            row_identifier_column_name = source.get("row_identifier_column") or None
+        if summary_column_name is None:
+            summary_column_name = source.get("column_name") or None
         rows.append(data)
 
     ordered_answer_keys = sorted(answer_keys)
@@ -69,7 +76,9 @@ def export_analysis_to_excel(
     if sheet is None:
         raise RuntimeError("Failed to create Excel worksheet.")
     sheet.title = "Analysis"
-    sheet.append(["url", "title", "source_file", *ordered_answer_keys])
+    extra_cols = [row_identifier_column_name] if row_identifier_column_name else []
+    summary_cols = [summary_column_name] if summary_column_name else []
+    sheet.append(["url", "title", "source_file", *extra_cols, *summary_cols, *ordered_answer_keys])
     header_font = Font(bold=header_bold)
     for cell in sheet[1]:
         cell.font = header_font
@@ -83,6 +92,12 @@ def export_analysis_to_excel(
             data.get("title", ""),
             data.get("source_file", ""),
         ]
+        if row_identifier_column_name:
+            identifier = (data.get("source") or {}).get("row_identifier")
+            row_values.append("" if identifier is None else str(identifier))
+        if summary_column_name:
+            summary_value = data.get("summary")
+            row_values.append("" if summary_value is None else str(summary_value))
         for key in ordered_answer_keys:
             value = answers.get(key, "")
             row_values.append("" if value is None else str(value))

@@ -1,5 +1,6 @@
 """Application services for analysis API endpoints."""
 
+from dataclasses import dataclass
 import json
 import re
 import shutil
@@ -8,9 +9,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from analysis.analyzer import BatchRunStats, run_batch
+from analysis.analyzer import BatchRunStats, run_batch as run_pages_batch
+from analysis.clients.base import ProviderRequestError
 from analysis.clients.env_loader import load_env_file
 from analysis.clients.factory import get_client
+from analysis.excel_analyzer import run_batch as run_excel_batch
 from env_settings import get_str_setting
 from exporters.analysis_excel_exporter import export_analysis_to_excel
 from api.models import (
@@ -27,10 +30,27 @@ RESULT_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SWAGGER_PLACEHOLDER_VALUES = {"string"}
-DEFAULT_API_INPUT_DIR = "data/pages"
 DEFAULT_API_OUTPUT_DIR = "data/analysis"
 DEFAULT_API_EXPORT_DIR = "data/exports"
 DEFAULT_API_PROVIDER = "mock"
+DEFAULT_USE_CASES_CONFIG = "config/analysis_use_cases.json"
+
+
+class UseCaseConfigurationError(RuntimeError):
+    """Raised when use-case preset configuration is invalid."""
+
+
+@dataclass
+class UseCaseConfig:
+    name: str
+    source_type: str
+    source_path: Path
+    system_prompt_path: Path
+    user_prompt_path: Path
+    sheet_name: str | None = None
+    column_name: str | None = None
+    header_row: int = 1
+    row_identifier_column: str | None = None
 
 
 def _resolve_path(path_value: str) -> Path:
@@ -58,22 +78,25 @@ def _require_existing_dir(path: Path, label: str) -> None:
         raise FileNotFoundError(f"{label} is not a directory: {path}")
 
 
-def get_default_input_dir() -> str:
-    return get_str_setting("API_INPUT_DIR", DEFAULT_API_INPUT_DIR)
+def _require_existing_file(path: Path, label: str) -> None:
+    if not path.exists():
+        raise FileNotFoundError(f"{label} not found: {path}")
+    if not path.is_file():
+        raise FileNotFoundError(f"{label} is not a file: {path}")
 
 
 def get_default_output_dir() -> str:
-    return get_str_setting("API_OUTPUT_DIR", DEFAULT_API_OUTPUT_DIR)
+    return get_str_setting("OUTPUT_DIR", DEFAULT_API_OUTPUT_DIR, aliases=("API_OUTPUT_DIR",))
 
 
 def get_default_export_dir() -> str:
-    return get_str_setting("API_EXPORT_DIR", DEFAULT_API_EXPORT_DIR)
+    return get_str_setting("EXPORT_DIR", DEFAULT_API_EXPORT_DIR, aliases=("API_EXPORT_DIR",))
 
 
 def get_default_provider() -> str:
-    provider = get_str_setting("API_PROVIDER", DEFAULT_API_PROVIDER).strip().lower()
+    provider = get_str_setting("PROVIDER", DEFAULT_API_PROVIDER, aliases=("API_PROVIDER",)).strip().lower()
     if provider not in {"openai", "eea", "mock"}:
-        raise ValueError(f"Unsupported API_PROVIDER: {provider}")
+        raise ValueError(f"Unsupported PROVIDER: {provider}")
     return provider
 
 
@@ -85,7 +108,98 @@ def get_default_api_key_override() -> str:
     return get_str_setting("API_API_KEY", "")
 
 
-def _build_client():
+def get_default_use_cases_config() -> str:
+    return get_str_setting("API_USE_CASES_CONFIG", DEFAULT_USE_CASES_CONFIG)
+
+
+def _load_use_case_presets() -> dict[str, Any]:
+    config_path = _resolve_path(get_default_use_cases_config())
+    if not config_path.exists() or not config_path.is_file():
+        raise UseCaseConfigurationError(f"Use-case config file not found: {config_path}")
+    loaded = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise UseCaseConfigurationError("Use-case config must be a JSON object.")
+    return loaded
+
+
+def get_use_case_names() -> list[str]:
+    """Return the list of configured use-case preset names."""
+    try:
+        return list(_load_use_case_presets().keys())
+    except UseCaseConfigurationError:
+        return []
+
+
+def _resolve_use_case(use_case: str) -> UseCaseConfig:
+    use_case_name = _normalize_optional_str(use_case)
+    if not use_case_name:
+        raise ValueError("Missing required field: use_case")
+
+    presets = _load_use_case_presets()
+    selected = presets.get(use_case_name)
+    if not isinstance(selected, dict):
+        raise ValueError(f"Unknown use_case: {use_case_name}")
+
+    source_type = str(selected.get("source_type") or "").strip().lower()
+    source_path_value = str(selected.get("source_path") or "").strip()
+    system_prompt_path_value = str(selected.get("system_prompt_path") or "").strip()
+    user_prompt_path_value = str(selected.get("user_prompt_path") or "").strip()
+    if not source_type or not source_path_value or not system_prompt_path_value or not user_prompt_path_value:
+        raise UseCaseConfigurationError(
+            f"Use case '{use_case_name}' must define source_type, source_path, system_prompt_path, and user_prompt_path."
+        )
+
+    source_path = _resolve_path(source_path_value)
+    system_prompt_path = _resolve_path(system_prompt_path_value)
+    user_prompt_path = _resolve_path(user_prompt_path_value)
+    if source_type == "pages":
+        return UseCaseConfig(
+            name=use_case_name,
+            source_type=source_type,
+            source_path=source_path,
+            system_prompt_path=system_prompt_path,
+            user_prompt_path=user_prompt_path,
+        )
+    if source_type == "excel":
+        sheet_name = str(selected.get("sheet_name") or "").strip()
+        column_name = str(selected.get("column_name") or "").strip()
+        row_identifier_column = str(selected.get("row_identifier_column") or "").strip() or None
+        header_row_raw = selected.get("header_row", 1)
+        try:
+            header_row = int(header_row_raw)
+        except (TypeError, ValueError) as exc:
+            raise UseCaseConfigurationError(
+                f"Use case '{use_case_name}' has invalid header_row: {header_row_raw}"
+            ) from exc
+        if not sheet_name or not column_name:
+            raise UseCaseConfigurationError(
+                f"Use case '{use_case_name}' must define sheet_name and column_name for excel."
+            )
+        if header_row < 1:
+            raise UseCaseConfigurationError(
+                f"Use case '{use_case_name}' must define header_row >= 1."
+            )
+        return UseCaseConfig(
+            name=use_case_name,
+            source_type=source_type,
+            source_path=source_path,
+            system_prompt_path=system_prompt_path,
+            user_prompt_path=user_prompt_path,
+            sheet_name=sheet_name,
+            column_name=column_name,
+            header_row=header_row,
+            row_identifier_column=row_identifier_column,
+        )
+
+    raise UseCaseConfigurationError(
+        f"Use case '{use_case_name}' has unsupported source_type: {source_type}"
+    )
+
+
+def _build_client(
+    user_prompt_override: str | None = None,
+    system_prompt_override: str | None = None,
+):
     provider = get_default_provider()
     env_values = load_env_file(REPO_ROOT / f".env.{provider}")
     key_path = REPO_ROOT / f".env.{provider}.keys"
@@ -102,8 +216,7 @@ def _build_client():
             f"'{provider}'. Set API_API_KEY in .env.api or add API_KEY to {key_path.name}."
         )
 
-    default_prompts_dir = env_values.get("prompt_directory", "analysis/prompts")
-    prompts_dir = _resolve_path(default_prompts_dir)
+    prompts_dir = _resolve_path("analysis/prompts")
 
     client = get_client(
         provider=provider,
@@ -111,8 +224,38 @@ def _build_client():
         model=model,
         api_url=api_url,
         prompts_dir=prompts_dir,
+        user_prompt_template=_normalize_optional_str(user_prompt_override),
+        system_prompt_template=_normalize_optional_str(system_prompt_override),
     )
     return client, provider
+
+
+def _load_system_prompt_override(use_case: UseCaseConfig) -> str:
+    path = use_case.system_prompt_path
+    if not path.exists() or not path.is_file():
+        raise UseCaseConfigurationError(
+            f"System prompt file not found for use case '{use_case.name}': {path}"
+        )
+    content = path.read_text(encoding="utf-8").strip()
+    if not content:
+        raise UseCaseConfigurationError(
+            f"System prompt file is empty for use case '{use_case.name}': {path}"
+        )
+    return content
+
+
+def _load_user_prompt_override(use_case: UseCaseConfig) -> str:
+    path = use_case.user_prompt_path
+    if not path.exists() or not path.is_file():
+        raise UseCaseConfigurationError(
+            f"User prompt file not found for use case '{use_case.name}': {path}"
+        )
+    content = path.read_text(encoding="utf-8").strip()
+    if not content:
+        raise UseCaseConfigurationError(
+            f"User prompt file is empty for use case '{use_case.name}': {path}"
+        )
+    return content
 
 
 def _resolve_run_output_dir(output_dir: Path, timestamped_output_dir: bool) -> Path:
@@ -157,30 +300,63 @@ def _map_run_response(
 def start_run(request: AnalysisRunRequest) -> AnalysisRunResponse:
     """Run analysis for a batch and return execution details."""
     output_dir_value = get_default_output_dir()
-    input_dir_value = get_default_input_dir()
     timestamped_output_dir = True
     overwrite = False
     dry_run = False
     quiet = True
 
+    use_case = _resolve_use_case(request.use_case)
     base_output_dir = _resolve_path(output_dir_value)
-    input_dir = _resolve_path(input_dir_value)
-    _require_existing_dir(input_dir, "Input directory")
     _require_existing_dir(base_output_dir, "Output directory")
 
     output_dir = _resolve_run_output_dir(base_output_dir, timestamped_output_dir)
     warnings: list[str] = []
-    client, provider = _build_client()
-
-    stats = run_batch(
-        input_dir=input_dir,
-        output_dir=output_dir,
-        client=client,
-        max_items=request.max_items,
-        verbose=not quiet,
-        overwrite=overwrite,
-        dry_run=dry_run,
+    system_prompt_override = _load_system_prompt_override(use_case)
+    user_prompt_override = _normalize_optional_str(request.user_prompt) or _load_user_prompt_override(use_case)
+    client, provider = _build_client(
+        user_prompt_override=user_prompt_override,
+        system_prompt_override=system_prompt_override,
     )
+
+    if use_case.source_type == "pages":
+        _require_existing_dir(use_case.source_path, "Input directory")
+        stats = run_pages_batch(
+            input_dir=use_case.source_path,
+            output_dir=output_dir,
+            client=client,
+            max_items=request.max_items,
+            verbose=not quiet,
+            overwrite=overwrite,
+            dry_run=dry_run,
+            use_case=use_case.name,
+            source_type=use_case.source_type,
+            source_path=str(use_case.source_path),
+        )
+    elif use_case.source_type == "excel":
+        _require_existing_file(use_case.source_path, "Input file")
+        try:
+            stats = run_excel_batch(
+                input_file=use_case.source_path,
+                sheet_name=use_case.sheet_name or "",
+                column_name=use_case.column_name or "",
+                header_row=use_case.header_row,
+                output_dir=output_dir,
+                client=client,
+                max_items=request.max_items,
+                verbose=not quiet,
+                overwrite=overwrite,
+                dry_run=dry_run,
+                use_case=use_case.name,
+                source_type=use_case.source_type,
+                source_path=str(use_case.source_path),
+                row_identifier_column=use_case.row_identifier_column,
+            )
+        except ValueError as exc:
+            raise UseCaseConfigurationError(str(exc)) from exc
+    else:
+        raise UseCaseConfigurationError(
+            f"Unsupported source_type for use case '{use_case.name}': {use_case.source_type}"
+        )
     return _map_run_response(
         stats=stats,
         provider=provider,

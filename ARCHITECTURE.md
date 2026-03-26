@@ -38,8 +38,9 @@ For the Analysis API (`/v1/analysis/runs`), provider/model/key are configured at
 (`API_PROVIDER`, `API_MODEL`, `API_API_KEY`) or overridden by `scripts/run_analysis_api.py` arguments.
 The run payload itself is minimal and currently accepts only `max_items` (optional).
 
-API run input/output directories are configured at server level via `.env.api`
-(`API_INPUT_DIR`, `API_OUTPUT_DIR`) or startup arguments.
+API run output directories are configured at server level via `.env.api`
+(`API_OUTPUT_DIR`) or startup arguments.
+API run inputs come from the selected use case in `config/analysis_use_cases.json`.
 Excel export location is configured with `API_EXPORT_DIR`.
 
 ## Storage

@@ -1,15 +1,15 @@
 [project]
 name = "mission_aipossible"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI project for scraping and analyzing Mission related data."
 readme = "README.md"
 authors = [
     { name = "Nikolaos Pximadakis", email = "nikolaos.paximadakis@eea.europa.eu" },
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
-    "scrapy==2.13.4",
+    "scrapy==2.14.2",
     "scrapy-playwright==0.0.44",
     "playwright==1.58.0",
     "pytest==8.4.2",
@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.0.0,<3.0.0",
     "fastapi>=0.116.0,<1.0.0",
     "uvicorn>=0.35.0,<1.0.0",
+    "python-multipart>=0.0.9,<1.0.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -58,3 +59,6 @@ warn_unused_configs = true
 [tool.isort]
 profile = "black"
 line_length = 120
+
+[tool.pytest.ini_options]
+addopts = "--basetemp=.pytest_tmp -p no:cacheprovider"

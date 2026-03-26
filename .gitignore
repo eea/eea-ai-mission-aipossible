@@ -17,6 +17,8 @@ data/
 
 # Test and tool caches
 .pytest_cache/
+.pytest_tmp*/
+.test_tmp*/
 .ruff_cache/
 .mypy_cache/
 .tox/
@@ -33,6 +35,7 @@ Thumbs.db
 # IDE/editor settings
 .vscode/
 .idea/
+.claude/
 
 # Local data/artifacts
 *.log
@@ -53,6 +56,13 @@ Thumbs.db
 analysis/prompts/*.txt
 pre_analysis/prompts/*.txt
 
+# Use-case config (contains local absolute paths; keep .example in git)
+config/analysis_use_cases.json
+
+# UI build artifacts
+ui/node_modules/
+ui/dist/
+
 # AI-related markdown docs
 AI_GUIDE.md
 AGENTS.md
@@ -65,3 +75,12 @@ COPILOT.md
 # Developer documentation
 docs/developer/*
 .flake8
+.env.api.cwscrunch
+.env.api.ilios
+.env.api.fliptopaki
+.env.fliptopaki
+.env.cwscrunch
+.env.ilios
+config/analysis_use_cases.ilios.json
+config/analysis_use_cases.cwscrunch.json
+config/analysis_use_cases.fliptopaki.json

@@ -1,0 +1,28 @@
+{
+  "adaptation_stories": {
+    "source_type": "pages",
+    "source_path": "/absolute/path/to/data/pages/adaptation_stories",
+    "system_prompt_path": "/absolute/path/to/data/prompts/adaptation_stories/system_prompt_adaptation_stories.txt",
+    "user_prompt_path": "/absolute/path/to/data/prompts/adaptation_stories/user_prompt_adaptation_stories.txt"
+  },
+  "question_2_1_1_column_7": {
+    "source_type": "excel",
+    "source_path": "/absolute/path/to/data/excel/question_2_1_1/question_2_1_1.xlsx",
+    "system_prompt_path": "/absolute/path/to/data/prompts/question_2_1_1_column_7/system_prompt_question_2_1_1_column_7.txt",
+    "user_prompt_path": "/absolute/path/to/data/prompts/question_2_1_1_column_7/user_prompt_question_2_1_1_column_7.txt",
+    "sheet_name": "2.1.1",
+    "column_name": "col7_Please explain",
+    "header_row": 1,
+    "row_identifier_column": "disclosing_organization"
+  },
+  "question_4_8_column_7": {
+    "source_type": "excel",
+    "source_path": "/absolute/path/to/data/excel/question_4_8/question_4_8.xlsx",
+    "system_prompt_path": "/absolute/path/to/data/prompts/question_4_8_column_7/system_prompt_question_4_8_column_7.txt",
+    "user_prompt_path": "/absolute/path/to/data/prompts/question_4_8_column_7/user_prompt_question_4_8_column_7.txt",
+    "sheet_name": "Q4.8",
+    "column_name": "col7_Comment",
+    "header_row": 1,
+    "row_identifier_column": "disclosing_organization"
+  }
+}

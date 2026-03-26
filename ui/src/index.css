@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+    background: linear-gradient(160deg, #f0f4ff 0%, #f8fafc 50%, #f0faf4 100%);
+    min-height: 100vh;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .input-field {
+    @apply w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm
+           text-gray-800 shadow-sm transition-all duration-150
+           focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20
+           disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold
+           text-white shadow-md transition-all duration-150
+           bg-brand-orange hover:bg-brand-orange/90 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-outline {
+    @apply flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium
+           bg-white shadow-sm transition-all duration-150 hover:shadow active:scale-[0.98];
+  }
+}
