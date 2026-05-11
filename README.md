@@ -105,6 +105,12 @@ Select provider and model:
 python -m scripts.run_analysis --provider openai --model gpt-4o --input C:/absolute/path/to/data/pages --output C:/absolute/path/to/data/analysis
 ```
 
+Use the Ollama provider for a local model:
+
+```powershell
+python -m scripts.run_analysis --provider ollama --model llama3.1 --input C:/absolute/path/to/data/pages --output C:/absolute/path/to/data/analysis
+```
+
 Use the mock provider (no API calls, no token usage):
 
 ```powershell
@@ -201,8 +207,8 @@ When `--output-dir` or `--export-dir` is passed, it overrides config-file values
 When `--provider`, `--model`, or `--api-key` is passed, it overrides `PROVIDER`, `API_MODEL`, or `API_API_KEY`.
 If you do not pass `--config-file`, the server looks for `.env.api` in the repo root and exits with an error if it is missing.
 `/v1/analysis/runs` fails with `404` if the configured `OUTPUT_DIR` does not exist, or if the selected use case points to a missing source path.
-`/v1/analysis/runs` returns `400` with a clear message if provider credentials are missing
-(for example missing `.env.<provider>.keys` and no `API_API_KEY` override).
+`/v1/analysis/runs` returns `400` with a clear message if required provider credentials are missing
+(for example missing `.env.<provider>.keys` and no `API_API_KEY` override for `openai` or `eea`).
 
 Health check:
 
@@ -282,6 +288,14 @@ Provider-specific defaults still come from:
 
 - `.env.openai` and `.env.openai.keys`
 - `.env.eea` and `.env.eea.keys`
+- `.env.ollama` (and optionally `.env.ollama.keys`, though local Ollama runs usually do not need one)
+
+Example `.env.ollama`:
+
+```text
+MODEL=llama3.1
+API_URL=http://127.0.0.1:11434
+```
 
 Use the EEA provider:
 

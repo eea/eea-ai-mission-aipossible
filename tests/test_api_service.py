@@ -135,6 +135,17 @@ def test_api_defaults_fall_back_to_legacy_api_keys(monkeypatch):
     assert get_default_provider() == "mock"
 
 
+def test_api_defaults_accept_ollama_provider(monkeypatch):
+    values = {"PROVIDER": "ollama"}
+
+    monkeypatch.setattr(
+        "api.service.get_str_setting",
+        lambda key, default="", aliases=(): values.get(key, default),
+    )
+
+    assert get_default_provider() == "ollama"
+
+
 def test_build_client_uses_provider_default_prompts_dir(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -274,6 +285,46 @@ def test_build_client_raises_when_api_key_missing(monkeypatch):
         assert ".env.eea.keys" in str(exc)
     else:
         raise AssertionError("Expected ValueError for missing provider API key.")
+
+
+def test_build_client_allows_missing_api_key_for_ollama(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def _fake_load_env_file(path: Path) -> dict[str, str]:
+        if path.name == ".env.ollama":
+            return {"MODEL": "llama3.1", "API_URL": "http://127.0.0.1:11434"}
+        if path.name == ".env.ollama.keys":
+            return {}
+        return {}
+
+    def _fake_get_client(
+        provider: str,
+        api_key: str,
+        model: str,
+        api_url: str,
+        prompts_dir: Path,
+        user_prompt_template: str | None = None,
+        system_prompt_template: str | None = None,
+    ):
+        captured["provider"] = provider
+        captured["api_key"] = api_key
+        captured["model"] = model
+        captured["api_url"] = api_url
+        captured["prompts_dir"] = prompts_dir
+        return object()
+
+    monkeypatch.setattr("api.service.load_env_file", _fake_load_env_file)
+    monkeypatch.setattr("api.service.get_client", _fake_get_client)
+    monkeypatch.setattr("api.service.get_default_provider", lambda: "ollama")
+    monkeypatch.setattr("api.service.get_default_model_override", lambda: "")
+    monkeypatch.setattr("api.service.get_default_api_key_override", lambda: "")
+
+    _build_client()
+
+    assert captured["provider"] == "ollama"
+    assert captured["api_key"] == ""
+    assert captured["model"] == "llama3.1"
+    assert captured["api_url"] == "http://127.0.0.1:11434"
 
 
 def test_start_run_creates_timestamped_subfolder(monkeypatch, tmp_path):

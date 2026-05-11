@@ -25,7 +25,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             --input: Input directory with page JSON files.
             --output: Output directory for analysis JSON files.
             --max-items: Maximum number of pages to analyze.
-            --provider: AI provider name (mock, openai, or eea).
+            --provider: AI provider name (mock, openai, eea, or ollama).
             --model: AI model name (overrides .env MODEL).
             --api-url: API URL (overrides .env API_URL).
             --api-key: API key (overrides .env.keys API_KEY).
@@ -74,7 +74,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--provider",
         default=env_values.get("PROVIDER", "mock"),
-        help="AI provider name (mock, openai, or eea). Overrides PROVIDER in .env.",
+        help="AI provider name (mock, openai, eea, or ollama). Overrides PROVIDER in .env.",
     )
     parser.add_argument(
         "--model",

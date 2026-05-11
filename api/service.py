@@ -95,7 +95,7 @@ def get_default_export_dir() -> str:
 
 def get_default_provider() -> str:
     provider = get_str_setting("PROVIDER", DEFAULT_API_PROVIDER, aliases=("API_PROVIDER",)).strip().lower()
-    if provider not in {"openai", "eea", "mock"}:
+    if provider not in {"openai", "eea", "ollama", "mock"}:
         raise ValueError(f"Unsupported PROVIDER: {provider}")
     return provider
 
@@ -210,7 +210,7 @@ def _build_client(
     model = model_override or env_values.get("MODEL") or env_values.get("AI_MODEL") or "stub"
     api_url = env_values.get("API_URL") or ""
     api_key = api_key_override or key_values.get("API_KEY") or key_values.get("AI_API_KEY") or ""
-    if provider != "mock" and not api_key:
+    if provider not in {"mock", "ollama"} and not api_key:
         raise ValueError(
             "Missing API key for provider "
             f"'{provider}'. Set API_API_KEY in .env.api or add API_KEY to {key_path.name}."

@@ -51,6 +51,8 @@ Thumbs.db
 .env.eea
 .env.eea.keys
 .env.api
+.env.ollama
+.env.ollama.keys
 
 # Prompt files (keep .example in git)
 analysis/prompts/*.txt
@@ -84,3 +86,4 @@ docs/developer/*
 config/analysis_use_cases.ilios.json
 config/analysis_use_cases.cwscrunch.json
 config/analysis_use_cases.fliptopaki.json
+

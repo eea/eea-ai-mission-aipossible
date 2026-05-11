@@ -275,6 +275,47 @@ def test_main_uses_provider_and_output_defaults_from_dotenv(monkeypatch):
         _cleanup_scratch_dir(temp_path)
 
 
+def test_main_loads_ollama_provider_env_without_api_key(monkeypatch):
+    temp_path = _make_scratch_dir()
+    try:
+        captured: dict[str, object] = {}
+        configured_output = temp_path / "configured-analysis"
+
+        def _fake_load_env_file(path: Path) -> dict[str, str]:
+            if path.name == ".env":
+                return {
+                    "PROVIDER": "ollama",
+                    "OUTPUT_DIR": str(configured_output),
+                }
+            if path.name == ".env.ollama":
+                return {"MODEL": "llama3.1", "API_URL": "http://127.0.0.1:11434"}
+            if path.name == ".env.ollama.keys":
+                return {}
+            return {}
+
+        def _fake_get_client(**kwargs):
+            captured["client_kwargs"] = kwargs
+            return object()
+
+        def _fake_run_batch(**kwargs):
+            captured["run_batch_kwargs"] = kwargs
+            return BatchRunStats(processed=0, skipped=0, total_elapsed_seconds=0.0, items=[])
+
+        monkeypatch.setattr("scripts.run_analysis.load_env_file", _fake_load_env_file)
+        monkeypatch.setattr("scripts.run_analysis.get_client", _fake_get_client)
+        monkeypatch.setattr("scripts.run_analysis.run_batch", _fake_run_batch)
+        monkeypatch.setattr("sys.argv", ["run_analysis.py"])
+
+        assert run_analysis.main() == 0
+        assert captured["client_kwargs"]["provider"] == "ollama"
+        assert captured["client_kwargs"]["api_key"] == ""
+        assert captured["client_kwargs"]["model"] == "llama3.1"
+        assert captured["client_kwargs"]["api_url"] == "http://127.0.0.1:11434"
+        assert captured["run_batch_kwargs"]["output_dir"] == configured_output
+    finally:
+        _cleanup_scratch_dir(temp_path)
+
+
 def test_main_raises_for_unknown_use_case(monkeypatch, capsys):
     temp_path = _make_scratch_dir()
     try:

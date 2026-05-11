@@ -22,7 +22,7 @@ This project has two main stages:
 - `analysis/analyzer.py`  
   Batch analysis runner with skip/overwrite/dry-run behavior.
 - `analysis/clients/`  
-  Provider clients and factory (Mock, OpenAI, and EEA).
+  Provider clients and factory (Mock, OpenAI, EEA, and Ollama).
 
 ## Providers
 
