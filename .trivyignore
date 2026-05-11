@@ -1,0 +1,3 @@
+# Temporary: Twisted fix is currently only available as a release candidate.
+# Twisted is pulled in via Scrapy. Revisit when a stable Twisted release is available.
+CVE-2026-42304
