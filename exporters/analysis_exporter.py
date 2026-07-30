@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def export_analysis_to_md(
+def export_analysis_to_md(  # noqa: C901
     input_dir: Path,
     output_dir: Path,
     combine: bool = False,
@@ -14,6 +14,7 @@ def export_analysis_to_md(
     dry_run: bool = False,
 ) -> None:
     """Export analysis results from JSON files to Markdown format.
+
     Args:
         input_dir: Directory containing analysis JSON files.
         output_dir: Directory to save exported Markdown files.
@@ -22,6 +23,7 @@ def export_analysis_to_md(
         overwrite: If True, overwrite existing files.
         verbose: If True, print progress messages.
         dry_run: If True, simulate the export without writing files.
+
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     files = sorted(input_dir.glob("*.json"))

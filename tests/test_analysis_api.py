@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from api.app import app
 
-
 client = TestClient(app)
 
 
@@ -124,7 +123,10 @@ def test_run_endpoint_invalid_use_case_maps_to_400(monkeypatch):
 
 
 def test_run_endpoint_rejects_unknown_provider():
-    response = client.post("/v1/analysis/runs", json={"provider": "invalid-provider", "use_case": "adaptation_stories", "max_items": 1})
+    response = client.post(
+        "/v1/analysis/runs",
+        json={"provider": "invalid-provider", "use_case": "adaptation_stories", "max_items": 1},
+    )
     assert response.status_code == 422
 
 

@@ -4,12 +4,12 @@ import json
 from pathlib import Path
 
 import openpyxl
+from openpyxl.styles import Alignment, Font
+
 from analysis.utils import parse_answers
-from openpyxl.styles import Alignment
-from openpyxl.styles import Font
 
 
-def export_analysis_to_excel(
+def export_analysis_to_excel(  # noqa: C901
     input_dir: Path,
     output_path: Path,
     overwrite: bool = False,
@@ -32,6 +32,7 @@ def export_analysis_to_excel(
         auto_width: If True, auto-size column widths based on cell content.
         wrap_text: If True, enable wrapped text for body cells.
         freeze_panes: Excel freeze panes reference (e.g. "A2"), or None to disable.
+
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     files = sorted(input_dir.glob("*.json"))

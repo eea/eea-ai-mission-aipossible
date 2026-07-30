@@ -7,11 +7,11 @@ from exporters.pages_exporter import export_pages_to_jsonl
 
 
 def parse_args() -> argparse.Namespace:
-    """
-    Parse command-line arguments for the export script.
+    """Parse command-line arguments for the export script.
 
     Returns:
         argparse.Namespace: Parsed command-line arguments.
+
     """
     parser = argparse.ArgumentParser(description="Export scraped page JSON files to JSONL.")
     parser.add_argument(
@@ -43,11 +43,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """
-    Main function to parse arguments and export scraped page JSON files to JSONL format.
+    """Main function to parse arguments and export scraped page JSON files to JSONL format.
 
     Returns:
         int: Exit code (0 for success).
+
     """
     args = parse_args()
     export_pages_to_jsonl(

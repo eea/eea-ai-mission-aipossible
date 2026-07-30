@@ -1,0 +1,48 @@
+FROM node:20-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    CI=true
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        jq \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-venv \
+    && ln -sf /usr/bin/python3 /usr/local/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY ui/package.json ui/package-lock.json ./ui/
+COPY . .
+
+RUN python -m pip install --break-system-packages --upgrade pip \
+    && pip install --break-system-packages \
+        "scrapy==2.16.0" \
+        "scrapy-playwright==0.0.47" \
+        "playwright==1.60.0" \
+        "pytest==9.1.1" \
+        "openpyxl==3.1.5" \
+        "openai" \
+        "pydantic>=2.0.0,<3.0.0" \
+        "fastapi>=0.116.0,<1.0.0" \
+        "uvicorn>=0.35.0,<1.0.0" \
+        "python-multipart>=0.0.9,<1.0.0" \
+        black \
+        coverage-lcov \
+        mypy \
+        pytest-cov \
+        ruff
+
+RUN npm ci --legacy-peer-deps --prefix /app/ui
+
+RUN mkdir -p /app/coverage/lcov-report /app/integration-coverage/lcov-report
+
+CMD ["bash"]

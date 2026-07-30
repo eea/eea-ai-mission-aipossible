@@ -6,8 +6,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from exporters.analysis_exporter import export_analysis_to_md
-from analysis.clients.env_loader import load_env_file
+from analysis.clients.env_loader import load_env_file  # noqa: E402
+from exporters.analysis_exporter import export_analysis_to_md  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:

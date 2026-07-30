@@ -1,0 +1,288 @@
+pipeline {
+  agent {
+    node { label 'docker-host' }
+  }
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    IMAGE_BASENAME_TEST = 'mission-aipossible-test'
+    IMAGE_BASENAME_RELEASE = 'mission-aipossible-release'
+    DOCKERHUB_REPOSITORY = 'eeacms/eea-ai-mission-aipossible'
+    DOCKERHUB_CREDENTIALS_ID = 'dockerhub'
+    SONARQUBE_SERVER = 'Sonarqube'
+    SONAR_SCANNER_TOOL = 'SonarQubeScanner'
+    TRIVY_IMAGE = 'aquasec/trivy:0.57.1'
+    REPORTS_DIR = 'xunit-reports-current'
+    INTEGRATION_REPORTS_DIR = 'integration-reports-current'
+    APP_PORT = '18000'
+  }
+
+  stages {
+    stage('Versioning') {
+      steps {
+        script {
+          env.BASE_VERSION = sh(returnStdout: true, script: "jq -r '.version' ui/package.json").trim()
+          env.GIT_SHA_SHORT = sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()
+          env.SANITIZED_BRANCH = (env.BRANCH_NAME ?: 'detached').replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+          env.VERSION = (env.BRANCH_NAME == 'main' || env.TAG_NAME) ? env.BASE_VERSION : "${env.BASE_VERSION}-${env.SANITIZED_BRANCH}-${env.BUILD_NUMBER}-${env.GIT_SHA_SHORT}"
+          env.TEST_IMAGE = "${env.IMAGE_BASENAME_TEST}:${env.BUILD_NUMBER}"
+          env.RELEASE_IMAGE = "${env.IMAGE_BASENAME_RELEASE}:${env.BUILD_NUMBER}"
+          env.DOCKERHUB_VERSION_TAG = "${env.DOCKERHUB_REPOSITORY}:${env.VERSION}"
+          env.DOCKERHUB_LATEST_TAG = "${env.DOCKERHUB_REPOSITORY}:latest"
+          env.APP_CONTAINER = "mission-aipossible-api-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+        }
+        sh '''
+          rm -rf xunit-reports-current integration-reports-current .jenkins-fixtures .trivy
+          mkdir -p xunit-reports-current/coverage integration-reports-current/coverage .jenkins-fixtures .trivy
+        '''
+      }
+    }
+
+    stage('Build test image') {
+      steps {
+        sh 'docker build -f Dockerfile.test -t "$TEST_IMAGE" .'
+      }
+    }
+
+    stage('Code linting') {
+      parallel {
+        stage('Python quality checks') {
+          steps {
+            sh '''
+              docker run --rm -v "$WORKSPACE:/workspace" -w /workspace "$TEST_IMAGE" bash -lc '
+                ruff check analysis api pre_analysis exporters scripts adaptation_stories tests main.py env_settings.py --select E,F,W,I,B,C,N,Q,RUF --ignore D &&
+                black --check analysis api pre_analysis exporters scripts adaptation_stories tests main.py env_settings.py &&
+                mypy analysis api pre_analysis exporters scripts adaptation_stories
+              '
+            '''
+          }
+        }
+        stage('UI production build') {
+          steps {
+            sh '''
+              docker run --rm "$TEST_IMAGE" bash -lc 'cd /app/ui && npm run build'
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Unit test') {
+      steps {
+        script {
+          def unitFailed = false
+          try {
+            sh '''
+              docker run --rm \
+                -v "$WORKSPACE:/workspace" \
+                -v "$WORKSPACE/$REPORTS_DIR:/reports" \
+                -w /workspace \
+                "$TEST_IMAGE" bash -lc '
+                  mkdir -p /reports/coverage &&
+                  pytest tests \
+                    --ignore=tests/test_analysis_api.py \
+                    --ignore=tests/test_run_analysis_api_script.py \
+                    --junitxml=/reports/junit.xml \
+                    --cov=analysis \
+                    --cov=api \
+                    --cov=pre_analysis \
+                    --cov=exporters \
+                    --cov=adaptation_stories \
+                    --cov=scripts \
+                    --cov=main \
+                    --cov=env_settings \
+                    --cov-report=term-missing \
+                    --cov-report=lcov:/reports/coverage/lcov.info \
+                    --cov-report=html:/reports/coverage/lcov-report
+                '
+            '''
+          } catch (err) {
+            unitFailed = true
+          } finally {
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              junit testResults: 'xunit-reports-current/junit.xml', allowEmptyResults: true
+            }
+            publishHTML(target: [
+              allowMissing: false,
+              alwaysLinkToLastBuild: true,
+              keepAll: true,
+              reportDir: 'xunit-reports-current/coverage/lcov-report',
+              reportFiles: 'index.html',
+              reportName: 'UTCoverage',
+              reportTitles: 'Unit Tests Code Coverage'
+            ])
+          }
+          if (unitFailed) {
+            error('Unit tests failed')
+          }
+        }
+      }
+    }
+
+    stage('Build release image') {
+      steps {
+        sh 'docker build -t "$RELEASE_IMAGE" .'
+      }
+    }
+
+    stage('Integration test') {
+      steps {
+        script {
+          def integrationFailed = false
+          try {
+            sh '''
+              set -euo pipefail
+              printf '{"smoke_use_case": {}}' > .jenkins-fixtures/analysis_use_cases.json
+
+              cleanup() {
+                docker rm -fv "$APP_CONTAINER" >/dev/null 2>&1 || true
+              }
+              trap cleanup EXIT
+
+              docker run -d \
+                --name "$APP_CONTAINER" \
+                -p 127.0.0.1:${APP_PORT}:8000 \
+                -v "$WORKSPACE/.jenkins-fixtures:/fixtures" \
+                -e OUTPUT_DIR=/app/data/analysis \
+                -e EXPORT_DIR=/app/data/exports \
+                -e PROVIDER=mock \
+                -e API_USE_CASES_CONFIG=/fixtures/analysis_use_cases.json \
+                "$RELEASE_IMAGE"
+
+              for _ in $(seq 1 30); do
+                curl -fsS "http://127.0.0.1:${APP_PORT}/health" >/dev/null && break
+                sleep 2
+              done
+
+              curl -fsS "http://127.0.0.1:${APP_PORT}/health" >/dev/null
+              curl -fsS "http://127.0.0.1:${APP_PORT}/v1/analysis/use-cases" >/dev/null
+
+              docker run --rm \
+                -v "$WORKSPACE:/workspace" \
+                -v "$WORKSPACE/$INTEGRATION_REPORTS_DIR:/reports" \
+                -w /workspace \
+                "$TEST_IMAGE" bash -lc '
+                  mkdir -p /reports/coverage &&
+                  pytest tests/test_analysis_api.py tests/test_run_analysis_api_script.py \
+                    --junitxml=/reports/junit.xml \
+                    --cov=api \
+                    --cov=scripts \
+                    --cov-report=term-missing \
+                    --cov-report=lcov:/reports/coverage/lcov.info \
+                    --cov-report=html:/reports/coverage/lcov-report
+                '
+            '''
+          } catch (err) {
+            integrationFailed = true
+          } finally {
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              junit testResults: 'integration-reports-current/junit.xml', allowEmptyResults: true
+            }
+            publishHTML(target: [
+              allowMissing: false,
+              alwaysLinkToLastBuild: true,
+              keepAll: true,
+              reportDir: 'integration-reports-current/coverage/lcov-report',
+              reportFiles: 'index.html',
+              reportName: 'ITCoverage',
+              reportTitles: 'Integration Tests Code Coverage'
+            ])
+          }
+          if (integrationFailed) {
+            error('Integration tests failed')
+          }
+        }
+      }
+    }
+
+    stage('Sonarqube test') {
+      steps {
+        script {
+          def scannerHome = tool env.SONAR_SCANNER_TOOL
+          if (env.CHANGE_ID) {
+            env.sonarParams = " -Dsonar.pullrequest.base=${env.CHANGE_TARGET} -Dsonar.pullrequest.branch=${env.CHANGE_BRANCH} -Dsonar.pullrequest.key=${env.CHANGE_ID} "
+          } else {
+            env.sonarParams = " -Dsonar.branch.name=${env.BRANCH_NAME} "
+          }
+          withSonarQubeEnv(env.SONARQUBE_SERVER) {
+            sh """
+              export PATH=${scannerHome}/bin:$PATH
+              sonar-scanner \
+                -Dsonar.projectKey=eea-ai-mission-aipossible \
+                -Dsonar.projectName=eea-ai-mission-aipossible \
+                -Dsonar.projectVersion=${env.VERSION} \
+                -Dsonar.sources=./adaptation_stories,./analysis,./api,./exporters,./pre_analysis,./scripts,./ui/src \
+                -Dsonar.tests=./tests \
+                -Dsonar.junit.reportPaths=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
+                -Dsonar.python.xunit.reportPath=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
+                -Dsonar.javascript.lcov.reportPaths=./xunit-reports-current/coverage/lcov.info,./integration-reports-current/coverage/lcov.info \
+                ${env.sonarParams}
+            """
+          }
+        }
+      }
+    }
+
+    stage('Trivy test') {
+      steps {
+        sh '''
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$WORKSPACE/.trivy:/root/.cache/" \
+            "$TRIVY_IMAGE" image --no-progress --severity HIGH,CRITICAL --exit-code 1 "$RELEASE_IMAGE"
+        '''
+      }
+    }
+
+    stage('Release on Docker Hub') {
+      when {
+        anyOf {
+          branch 'main'
+          buildingTag()
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+          sh '''
+            set -euo pipefail
+            echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker tag "$RELEASE_IMAGE" "$DOCKERHUB_VERSION_TAG"
+            docker push "$DOCKERHUB_VERSION_TAG"
+            if [ "$BRANCH_NAME" = "main" ]; then
+              docker tag "$RELEASE_IMAGE" "$DOCKERHUB_LATEST_TAG"
+              docker push "$DOCKERHUB_LATEST_TAG"
+            fi
+            docker logout
+          '''
+        }
+      }
+    }
+  }
+  post {
+    always {
+      sh '''
+        docker rm -fv "$APP_CONTAINER" >/dev/null 2>&1 || true
+      '''
+      cleanWs(cleanWhenAborted: true, cleanWhenFailure: true, cleanWhenNotBuilt: true, cleanWhenSuccess: true, cleanWhenUnstable: true, deleteDirs: true)
+    }
+    changed {
+      script {
+        def details = """<h1>${env.JOB_NAME} - Build #${env.BUILD_NUMBER} - ${currentBuild.currentResult}</h1>
+                         <p>Check console output at <a href="${env.BUILD_URL}/display/redirect">${env.JOB_BASE_NAME} - #${env.BUILD_NUMBER}</a></p>
+                      """
+        emailext(
+        subject: '$DEFAULT_SUBJECT',
+        body: details,
+        attachLog: true,
+        compressLog: true,
+        recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'CulpritsRecipientProvider']]
+        )
+      }
+    }
+  }
+}

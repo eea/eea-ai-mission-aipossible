@@ -16,8 +16,7 @@ def get_client(
     user_prompt_template: str | None = None,
     system_prompt_template: str | None = None,
 ):
-    """
-    Create and return an API client instance based on the provider.
+    """Create and return an API client instance based on the provider.
 
     Args:
         provider (str): The name of the provider ('openai', 'eea', or 'mock').
@@ -33,6 +32,7 @@ def get_client(
 
     Raises:
         ValueError: If the provider is unknown.
+
     """
     key = (provider or "").lower()
     if key == "openai":

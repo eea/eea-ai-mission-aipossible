@@ -7,12 +7,7 @@ def test_main_sets_config_and_dir_overrides(monkeypatch, tmp_path):
     captured: dict[str, object] = {}
     config_file = tmp_path / ".env.api"
     config_file.write_text(
-        (
-            "OUTPUT_DIR=data/analysis\n"
-            "EXPORT_DIR=data/exports\n"
-            "PROVIDER=mock\n"
-            "API_MODEL=mock-model\n"
-        ),
+        ("OUTPUT_DIR=data/analysis\n" "EXPORT_DIR=data/exports\n" "PROVIDER=mock\n" "API_MODEL=mock-model\n"),
         encoding="utf-8",
     )
 

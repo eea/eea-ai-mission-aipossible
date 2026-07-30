@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901
     """Run uvicorn server."""
     repo_root = Path(__file__).resolve().parents[1]
     if str(repo_root) not in sys.path:
@@ -81,8 +81,7 @@ def main() -> int:
         config_path = (repo_root / config_path).resolve()
     if not config_path.exists():
         raise SystemExit(
-            f"Config file not found: {config_path}. "
-            "Create .env.api at repo root or pass --config-file <path>."
+            f"Config file not found: {config_path}. " "Create .env.api at repo root or pass --config-file <path>."
         )
 
     os.environ["MISSION_CONFIG_FILE"] = str(config_path)
@@ -107,8 +106,7 @@ def main() -> int:
     else:
         last_port = args.port + max_attempts
         raise SystemExit(
-            f"No free port found in range {args.port}-{last_port}. "
-            "Pass --port to select another starting port."
+            f"No free port found in range {args.port}-{last_port}. " "Pass --port to select another starting port."
         )
 
     if selected_port != args.port:

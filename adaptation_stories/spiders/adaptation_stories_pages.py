@@ -1,6 +1,4 @@
-"""
-Spider for scraping adaptation stories pages from the Mission website.
-"""
+"""Spider for scraping adaptation stories pages from the Mission website."""
 
 import hashlib
 import json
@@ -14,8 +12,7 @@ from env_settings import get_bool_setting
 
 
 class AdaptationStoriesPagesSpider(scrapy.Spider):
-    """
-    Spider for scraping adaptation stories pages from the Mission website.
+    """Spider for scraping adaptation stories pages from the Mission website.
 
     This spider reads a list of URLs from a JSON file, visits each page, and extracts structured information
     such as titles, metadata, section content, keywords, links, and images. The extracted data is saved as
@@ -40,10 +37,11 @@ class AdaptationStoriesPagesSpider(scrapy.Spider):
         _load_urls: Loads and parses URLs from the input file.
         _clean_text: Cleans and normalizes text values.
         _parse_max_links: Parses and validates the max_links parameter.
+
     """
 
     name = "adaptation_stories_pages"
-    allowed_domains = ["climate-adapt.eea.europa.eu"]
+    allowed_domains = ("climate-adapt.eea.europa.eu",)
 
     def __init__(
         self,
@@ -60,14 +58,14 @@ class AdaptationStoriesPagesSpider(scrapy.Spider):
         self.max_links = self._parse_max_links(max_links)
 
     async def start(self):
-        """
-        Starts the crawling process by loading URLs and yielding Scrapy requests for each URL.
+        """Starts the crawling process by loading URLs and yielding Scrapy requests for each URL.
 
         Yields:
             scrapy.Request: A Scrapy request object for each URL to be parsed.
 
         Limits:
             If self.max_links is set, only the first `max_links` URLs are processed.
+
         """
         urls = self._load_urls()
         if self.max_links:
@@ -80,8 +78,7 @@ class AdaptationStoriesPagesSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def parse(self, response):
-        """
-        Parse the response from an adaptation story page and extract structured data.
+        """Parse the response from an adaptation story page and extract structured data.
 
         This method extracts the following information from the response:
             - URL and a hashed filename for output.
@@ -102,13 +99,12 @@ class AdaptationStoriesPagesSpider(scrapy.Spider):
 
         Returns:
             None
+
         """
         url = response.url
         output_file = self._output_file_for_url(url)
         if output_file.exists() and output_file.stat().st_size > 0:
-            self.logger.info(
-                "Already saved, skipping write (%s): %s", output_file.name, url
-            )
+            self.logger.info("Already saved, skipping write (%s): %s", output_file.name, url)
             return
 
         # Extract the main title
@@ -116,25 +112,15 @@ class AdaptationStoriesPagesSpider(scrapy.Spider):
         subtitle = response.css("p.subtitle::text").get()
 
         # Extract metadata
-        published_date = response.xpath(
-            '//p[@class="metadata"]//time[contains(., "Published")]/@datetime'
-        ).get()
-        modified_date = response.xpath(
-            '//p[@class="metadata"]//time[contains(., "Modified")]/@datetime'
-        ).get()
+        published_date = response.xpath('//p[@class="metadata"]//time[contains(., "Published")]/@datetime').get()
+        modified_date = response.xpath('//p[@class="metadata"]//time[contains(., "Modified")]/@datetime').get()
         if not published_date:
-            published_date = response.xpath(
-                '//p[@class="metadata"]//time[contains(., "Published")]/text()'
-            ).get()
+            published_date = response.xpath('//p[@class="metadata"]//time[contains(., "Published")]/text()').get()
         if not modified_date:
-            modified_date = response.xpath(
-                '//p[@class="metadata"]//time[contains(., "Modified")]/text()'
-            ).get()
+            modified_date = response.xpath('//p[@class="metadata"]//time[contains(., "Modified")]/text()').get()
 
         # Extract the summary/introduction (document description)
-        document_description = response.css(
-            "div.documentDescription.eea.callout p::text"
-        ).get()
+        document_description = response.css("div.documentDescription.eea.callout p::text").get()
 
         # Extract all section headings and content
         sections = []

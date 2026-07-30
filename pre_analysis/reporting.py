@@ -1,13 +1,12 @@
 """Markdown reporting for pre-analysis runs."""
 
+import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-import json
 
-
-def build_report(
+def build_report(  # noqa: C901
     run_meta: dict,
     rows: list[dict],
 ) -> str:
@@ -21,8 +20,8 @@ def build_report(
         lines.append(f"- {key}: {value}")
     lines.append("")
 
-    status_counts = Counter()
-    pattern_counts = Counter()
+    status_counts: Counter[str] = Counter()
+    pattern_counts: Counter[str] = Counter()
     pattern_lengths: dict[str, list[int]] = {}
     for row in rows:
         status = row.get("status", {})
@@ -62,9 +61,7 @@ def build_report(
     if pattern_counts:
         total_rows = len(rows) if rows else 1
         threshold = 0.1
-        lines.append(
-            f"- Criteria: patterns appearing in >= {threshold * 100:.0f}% of rows."
-        )
+        lines.append(f"- Criteria: patterns appearing in >= {threshold * 100:.0f}% of rows.")
         for pattern, count in pattern_counts.most_common():
             if (count / total_rows) < threshold:
                 continue
@@ -73,7 +70,8 @@ def build_report(
                 f"  - Extract numeric quantities with units related to '{pattern}', and map each value to its subject."
             )
             lines.append(
-                f"  - Extract budgets, counts, and thresholds mentioned within '{pattern}', including currency, units, and timelines."
+                f"  - Extract budgets, counts, and thresholds mentioned within '{pattern}', "
+                "including currency, units, and timelines."
             )
     else:
         lines.append("- No patterns detected; use generic quantification prompts.")

@@ -50,10 +50,7 @@ def test_parses_alternate_phrase_with_following_count(tmp_path: Path) -> None:
 
 def test_parses_count_statement_beyond_first_20_lines(tmp_path: Path) -> None:
     intro = "\n".join(f"line {index}" for index in range(1, 22))
-    user_prompt = (
-        f"{intro}\nI would like you to analyse the following 4 questions.\n\n"
-        "{INSERT SCRAPED TEXT HERE}"
-    )
+    user_prompt = f"{intro}\nI would like you to analyse the following 4 questions.\n\n" "{INSERT SCRAPED TEXT HERE}"
     prompts_dir = _write_prompts(tmp_path, user_prompt)
 
     client = DummyClient(api_key="", model="m", api_url="", prompts_dir=prompts_dir, user_prompt_template=user_prompt)
@@ -63,8 +60,7 @@ def test_parses_count_statement_beyond_first_20_lines(tmp_path: Path) -> None:
 
 def test_parses_count_statement_with_questions_below_phrase(tmp_path: Path) -> None:
     user_prompt = (
-        "Analyze the above-mentioned response and answer the 3 questions below.\n\n"
-        "{INSERT SCRAPED TEXT HERE}"
+        "Analyze the above-mentioned response and answer the 3 questions below.\n\n" "{INSERT SCRAPED TEXT HERE}"
     )
     prompts_dir = _write_prompts(tmp_path, user_prompt)
 
@@ -86,12 +82,24 @@ def test_raises_for_zero_or_unsupported_number(tmp_path: Path) -> None:
     user_prompt_zero = "I would like you to analyse the following 0 questions."
     prompts_dir_zero = _write_prompts(tmp_path / "zero", user_prompt_zero)
     with pytest.raises(ValueError, match="positive integer"):
-        DummyClient(api_key="", model="m", api_url="", prompts_dir=prompts_dir_zero, user_prompt_template=user_prompt_zero)
+        DummyClient(
+            api_key="",
+            model="m",
+            api_url="",
+            prompts_dir=prompts_dir_zero,
+            user_prompt_template=user_prompt_zero,
+        )
 
     user_prompt_word = "I would like you to analyse the following many questions."
     prompts_dir_word = _write_prompts(tmp_path / "word", user_prompt_word)
     with pytest.raises(ValueError, match="Unsupported number word"):
-        DummyClient(api_key="", model="m", api_url="", prompts_dir=prompts_dir_word, user_prompt_template=user_prompt_word)
+        DummyClient(
+            api_key="",
+            model="m",
+            api_url="",
+            prompts_dir=prompts_dir_word,
+            user_prompt_template=user_prompt_word,
+        )
 
 
 def test_generated_rules_block_matches_required_text(tmp_path: Path) -> None:

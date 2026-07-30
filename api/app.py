@@ -1,27 +1,28 @@
 """FastAPI application exposing analysis endpoints."""
 
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-import shutil
 
-from fastapi import BackgroundTasks
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from analysis.clients.base import ProviderRequestError
 from api.models import (
     AnalysisRunRequest,
     AnalysisRunResponse,
     HealthResponse,
 )
-from api.service import REPO_ROOT, get_default_output_dir, get_use_case_names, start_run
 from api.service import (
-    ProviderRequestError,
+    REPO_ROOT,
     UseCaseConfigurationError,
     build_excel_export_workbook,
     build_run_download_archive,
+    get_default_output_dir,
+    get_use_case_names,
+    start_run,
 )
-
 
 app = FastAPI(
     title="Mission AIpossible Analysis API",
@@ -37,6 +38,17 @@ app.add_middleware(
     allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+PROMPT_FILE_PARAM = File(...)
+USE_CASE_FORM = Form(
+    ...,
+    description="The use-case name (must match a key in config/analysis_use_cases.json).",
+)
+MAX_ITEMS_FORM = Form(
+    default=None,
+    ge=1,
+    description="Optional limit on how many items (rows/pages) to process.",
 )
 
 
@@ -114,16 +126,9 @@ def run_analysis(request: AnalysisRunRequest) -> AnalysisRunResponse:
     },
 )
 async def run_analysis_with_prompt_file(
-    prompt_file: UploadFile = File(...),
-    use_case: str = Form(
-        ...,
-        description="The use-case name (must match a key in config/analysis_use_cases.json).",
-    ),
-    max_items: int | None = Form(
-        default=None,
-        ge=1,
-        description="Optional limit on how many items (rows/pages) to process.",
-    ),
+    prompt_file: UploadFile = PROMPT_FILE_PARAM,
+    use_case: str = USE_CASE_FORM,
+    max_items: int | None = MAX_ITEMS_FORM,
 ) -> AnalysisRunResponse:
     """Start a synchronous analysis run using a user prompt uploaded as a .txt file."""
     filename = (prompt_file.filename or "").strip()

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import openpyxl
 
-
 STRICT_EXCEL_COMPARISON = False
 
 
@@ -48,15 +47,11 @@ def _normalize_observed_impacts(values: object) -> list[str]:
         return []
     if isinstance(values, str):
         return _normalize_impacts(values)
-    normalized = [
-        _normalize_impact_value(str(item))
-        for item in values
-        if item is not None and str(item).strip()
-    ]
+    normalized = [_normalize_impact_value(str(item)) for item in values if item is not None and str(item).strip()]
     return [item for item in normalized if item]
 
 
-def _compare_excel_column_to_json(
+def _compare_excel_column_to_json(  # noqa: C901
     excel_column: str,
     json_key: str,
     report_path: Path,
@@ -70,18 +65,12 @@ def _compare_excel_column_to_json(
 
     sheet = workbook["mission-adaptation-stories"]
     header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
-    header_index = {
-        _normalize_header(cell): idx for idx, cell in enumerate(header_row) if cell
-    }
+    header_index = {_normalize_header(cell): idx for idx, cell in enumerate(header_row) if cell}
     expected_headers = {"title", _normalize_header(excel_column)}
-    missing_headers = [
-        name for name in expected_headers if name not in header_index
-    ]
+    missing_headers = [name for name in expected_headers if name not in header_index]
     if missing_headers:
         workbook.close()
-        raise AssertionError(
-            "Missing headers in Excel: " + ", ".join(sorted(missing_headers))
-        )
+        raise AssertionError("Missing headers in Excel: " + ", ".join(sorted(missing_headers)))
 
     expected = {}
     duplicate_expected = []
@@ -143,9 +132,7 @@ def _compare_excel_column_to_json(
                 details.append(f"missing={missing_values}")
             if extra_values:
                 details.append(f"extra={extra_values}")
-            mismatches.append(
-                f"{title}: expected={expected_values} observed={observed_values}"
-            )
+            mismatches.append(f"{title}: expected={expected_values} observed={observed_values}")
             report_rows.append(
                 {
                     "issue_type": "mismatch",
@@ -169,14 +156,9 @@ def _compare_excel_column_to_json(
                 }
             )
     if duplicate_conflicts and STRICT_EXCEL_COMPARISON:
-        errors.append(
-            "Conflicting duplicate titles in Excel: "
-            + ", ".join(sorted(duplicate_conflicts))
-        )
+        errors.append("Conflicting duplicate titles in Excel: " + ", ".join(sorted(duplicate_conflicts)))
     if duplicate_observed and STRICT_EXCEL_COMPARISON:
-        errors.append(
-            "Duplicate titles in JSON: " + ", ".join(sorted(duplicate_observed))
-        )
+        errors.append("Duplicate titles in JSON: " + ", ".join(sorted(duplicate_observed)))
         for title in duplicate_observed:
             report_rows.append(
                 {
@@ -188,9 +170,7 @@ def _compare_excel_column_to_json(
                 }
             )
     if missing_titles and STRICT_EXCEL_COMPARISON:
-        errors.append(
-            "Missing titles in JSON: " + ", ".join(sorted(missing_titles))
-        )
+        errors.append("Missing titles in JSON: " + ", ".join(sorted(missing_titles)))
     if mismatches and STRICT_EXCEL_COMPARISON:
         errors.append(f"{mismatch_label}:\n" + "\n".join(mismatches))
 
