@@ -34,10 +34,12 @@ pipeline {
           env.DOCKERHUB_VERSION_TAG = "${env.DOCKERHUB_REPOSITORY}:${env.VERSION}"
           env.DOCKERHUB_LATEST_TAG = "${env.DOCKERHUB_REPOSITORY}:latest"
           env.APP_CONTAINER = "mission-aipossible-api-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+          env.UNIT_CONTAINER = "mission-aipossible-unit-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+          env.IT_CONTAINER = "mission-aipossible-it-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
         }
         sh '''
-          rm -rf xunit-reports-current integration-reports-current .jenkins-fixtures .trivy
-          mkdir -p xunit-reports-current/coverage integration-reports-current/coverage .jenkins-fixtures .trivy
+          rm -rf xunit-reports-current integration-reports-current .jenkins-fixtures
+          mkdir -p xunit-reports-current/coverage integration-reports-current/coverage .jenkins-fixtures
         '''
       }
     }
@@ -53,7 +55,7 @@ pipeline {
         stage('Python quality checks') {
           steps {
             sh '''
-              docker run --rm -v "$WORKSPACE:/workspace" -w /workspace "$TEST_IMAGE" bash -lc '
+              docker run --rm "$TEST_IMAGE" bash -lc '
                 ruff check analysis api pre_analysis exporters scripts adaptation_stories tests main.py env_settings.py --select E,F,W,I,B,C,N,Q,RUF --ignore D &&
                 black --check analysis api pre_analysis exporters scripts adaptation_stories tests main.py env_settings.py &&
                 mypy analysis api pre_analysis exporters scripts adaptation_stories
@@ -74,49 +76,48 @@ pipeline {
     stage('Unit test') {
       steps {
         script {
-          def unitFailed = false
+          def unitStatus = 0
           try {
-            sh '''
-              docker run --rm \
-                -v "$WORKSPACE:/workspace" \
-                -v "$WORKSPACE/$REPORTS_DIR:/reports" \
-                -w /workspace \
-                "$TEST_IMAGE" bash -lc '
-                  mkdir -p /reports/coverage &&
-                  pytest tests \
-                    --ignore=tests/test_analysis_api.py \
-                    --ignore=tests/test_run_analysis_api_script.py \
-                    --junitxml=/reports/junit.xml \
-                    --cov=analysis \
-                    --cov=api \
-                    --cov=pre_analysis \
-                    --cov=exporters \
-                    --cov=adaptation_stories \
-                    --cov=scripts \
-                    --cov=main \
-                    --cov=env_settings \
-                    --cov-report=term-missing \
-                    --cov-report=lcov:/reports/coverage/lcov.info \
-                    --cov-report=html:/reports/coverage/lcov-report
-                '
-            '''
-          } catch (err) {
-            unitFailed = true
+            unitStatus = sh(returnStatus: true, script: '''
+              docker run --name "$UNIT_CONTAINER" "$TEST_IMAGE" bash -lc '
+                mkdir -p /app/reports/coverage &&
+                pytest tests \
+                  --ignore=tests/test_analysis_api.py \
+                  --ignore=tests/test_run_analysis_api_script.py \
+                  --junitxml=/app/reports/junit.xml \
+                  --cov=analysis \
+                  --cov=api \
+                  --cov=pre_analysis \
+                  --cov=exporters \
+                  --cov=adaptation_stories \
+                  --cov=scripts \
+                  --cov=main \
+                  --cov=env_settings \
+                  --cov-report=term-missing \
+                  --cov-report=lcov:/app/reports/coverage/lcov.info \
+                  --cov-report=html:/app/reports/coverage/lcov-report
+              '
+            ''')
+            sh script: 'docker cp "$UNIT_CONTAINER":/app/reports/junit.xml xunit-reports-current/junit.xml', returnStatus: true
+            sh script: 'docker cp "$UNIT_CONTAINER":/app/reports/coverage xunit-reports-current/coverage', returnStatus: true
           } finally {
             catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
               junit testResults: 'xunit-reports-current/junit.xml', allowEmptyResults: true
             }
-            publishHTML(target: [
-              allowMissing: false,
-              alwaysLinkToLastBuild: true,
-              keepAll: true,
-              reportDir: 'xunit-reports-current/coverage/lcov-report',
-              reportFiles: 'index.html',
-              reportName: 'UTCoverage',
-              reportTitles: 'Unit Tests Code Coverage'
-            ])
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              publishHTML(target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'xunit-reports-current/coverage/lcov-report',
+                reportFiles: 'index.html',
+                reportName: 'UTCoverage',
+                reportTitles: 'Unit Tests Code Coverage'
+              ])
+            }
+            sh script: 'docker rm -v "$UNIT_CONTAINER"', returnStatus: true
           }
-          if (unitFailed) {
+          if (unitStatus != 0) {
             error('Unit tests failed')
           }
         }
@@ -132,26 +133,22 @@ pipeline {
     stage('Integration test') {
       steps {
         script {
-          def integrationFailed = false
+          def integrationStatus = 0
           try {
             sh '''
               set -euo pipefail
               printf '{"smoke_use_case": {}}' > .jenkins-fixtures/analysis_use_cases.json
 
-              cleanup() {
-                docker rm -fv "$APP_CONTAINER" >/dev/null 2>&1 || true
-              }
-              trap cleanup EXIT
-
-              docker run -d \
+              docker create \
                 --name "$APP_CONTAINER" \
                 -p 127.0.0.1:${APP_PORT}:8000 \
-                -v "$WORKSPACE/.jenkins-fixtures:/fixtures" \
                 -e OUTPUT_DIR=/app/data/analysis \
                 -e EXPORT_DIR=/app/data/exports \
                 -e PROVIDER=mock \
-                -e API_USE_CASES_CONFIG=/fixtures/analysis_use_cases.json \
+                -e API_USE_CASES_CONFIG=/tmp/analysis_use_cases.json \
                 "$RELEASE_IMAGE"
+              docker cp .jenkins-fixtures/analysis_use_cases.json "$APP_CONTAINER":/tmp/analysis_use_cases.json
+              docker start "$APP_CONTAINER"
 
               for _ in $(seq 1 30); do
                 curl -fsS "http://127.0.0.1:${APP_PORT}/health" >/dev/null && break
@@ -160,39 +157,41 @@ pipeline {
 
               curl -fsS "http://127.0.0.1:${APP_PORT}/health" >/dev/null
               curl -fsS "http://127.0.0.1:${APP_PORT}/v1/analysis/use-cases" >/dev/null
-
-              docker run --rm \
-                -v "$WORKSPACE:/workspace" \
-                -v "$WORKSPACE/$INTEGRATION_REPORTS_DIR:/reports" \
-                -w /workspace \
-                "$TEST_IMAGE" bash -lc '
-                  mkdir -p /reports/coverage &&
-                  pytest tests/test_analysis_api.py tests/test_run_analysis_api_script.py \
-                    --junitxml=/reports/junit.xml \
-                    --cov=api \
-                    --cov=scripts \
-                    --cov-report=term-missing \
-                    --cov-report=lcov:/reports/coverage/lcov.info \
-                    --cov-report=html:/reports/coverage/lcov-report
-                '
             '''
-          } catch (err) {
-            integrationFailed = true
+
+            integrationStatus = sh(returnStatus: true, script: '''
+              docker run --name "$IT_CONTAINER" "$TEST_IMAGE" bash -lc '
+                mkdir -p /app/reports/coverage &&
+                pytest tests/test_analysis_api.py tests/test_run_analysis_api_script.py \
+                  --junitxml=/app/reports/junit.xml \
+                  --cov=api \
+                  --cov=scripts \
+                  --cov-report=term-missing \
+                  --cov-report=lcov:/app/reports/coverage/lcov.info \
+                  --cov-report=html:/app/reports/coverage/lcov-report
+              '
+            ''')
+            sh script: 'docker cp "$IT_CONTAINER":/app/reports/junit.xml integration-reports-current/junit.xml', returnStatus: true
+            sh script: 'docker cp "$IT_CONTAINER":/app/reports/coverage integration-reports-current/coverage', returnStatus: true
           } finally {
             catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
               junit testResults: 'integration-reports-current/junit.xml', allowEmptyResults: true
             }
-            publishHTML(target: [
-              allowMissing: false,
-              alwaysLinkToLastBuild: true,
-              keepAll: true,
-              reportDir: 'integration-reports-current/coverage/lcov-report',
-              reportFiles: 'index.html',
-              reportName: 'ITCoverage',
-              reportTitles: 'Integration Tests Code Coverage'
-            ])
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              publishHTML(target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'integration-reports-current/coverage/lcov-report',
+                reportFiles: 'index.html',
+                reportName: 'ITCoverage',
+                reportTitles: 'Integration Tests Code Coverage'
+              ])
+            }
+            sh script: 'docker rm -fv "$APP_CONTAINER"', returnStatus: true
+            sh script: 'docker rm -v "$IT_CONTAINER"', returnStatus: true
           }
-          if (integrationFailed) {
+          if (integrationStatus != 0) {
             error('Integration tests failed')
           }
         }
@@ -232,7 +231,6 @@ pipeline {
         sh '''
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$WORKSPACE/.trivy:/root/.cache/" \
             "$TRIVY_IMAGE" image --no-progress --severity HIGH,CRITICAL --exit-code 1 "$RELEASE_IMAGE"
         '''
       }
@@ -266,6 +264,8 @@ pipeline {
     always {
       sh '''
         docker rm -fv "$APP_CONTAINER" >/dev/null 2>&1 || true
+        docker rm -fv "$UNIT_CONTAINER" >/dev/null 2>&1 || true
+        docker rm -fv "$IT_CONTAINER" >/dev/null 2>&1 || true
       '''
       cleanWs(cleanWhenAborted: true, cleanWhenFailure: true, cleanWhenNotBuilt: true, cleanWhenSuccess: true, cleanWhenUnstable: true, deleteDirs: true)
     }
