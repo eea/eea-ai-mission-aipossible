@@ -238,6 +238,18 @@ pipeline {
                 -Dsonar.coverage.exclusions=ui/src/**,adaptation_stories/settings.py,adaptation_stories/middlewares.py,adaptation_stories/pipelines.py,main.py,scripts/run_analysis_api.py,scripts/run_pre_analysis.py \
                 ${env.sonarParams}
             """
+            // Bind this project to the GitHubEEA DevOps Platform Integration
+            // so SonarQube posts the Quality Gate result as a GitHub check on
+            // PRs. sonar.pullrequest.* above only tells the scanner it's
+            // analyzing a PR — without this binding, nothing reports the
+            // result back to GitHub. Safe to call every build (idempotent).
+            sh '''
+              curl -s -XPOST -u "${SONAR_AUTH_TOKEN}:" "${SONAR_HOST_URL}api/alm_settings/set_github_binding" \
+                -d "almSetting=GitHubEEA" \
+                -d "project=eea-ai-mission-aipossible" \
+                -d "repository=eea/eea-ai-mission-aipossible" \
+                -d "summaryCommentEnabled=true"
+            '''
           }
         }
       }
