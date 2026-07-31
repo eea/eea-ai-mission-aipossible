@@ -1,6 +1,7 @@
 """OpenAI client implementation for mission analysis."""
 
 from pathlib import Path
+
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI
 
 from analysis.clients.base import BaseAIClient, ProviderRequestError

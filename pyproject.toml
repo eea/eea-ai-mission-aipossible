@@ -62,3 +62,16 @@ line_length = 120
 
 [tool.pytest.ini_options]
 addopts = "--basetemp=.pytest_tmp -p no:cacheprovider"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "ui/*",
+    # Scrapy engine config/wiring, only exercised by an actual crawl.
+    "adaptation_stories/settings.py",
+    "adaptation_stories/middlewares.py",
+    "adaptation_stories/pipelines.py",
+    # CLI entrypoint: thin wrapper around an already-tested function.
+    "main.py",
+]

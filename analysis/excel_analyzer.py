@@ -25,7 +25,7 @@ def _find_column_index(worksheet, header_row: int, column_name: str) -> int:
     target = normalize_text(column_name)
     for cell in worksheet[header_row]:
         if normalize_text(cell.value) == target:
-            return cell.column
+            return int(cell.column)
     raise ValueError(f"Column header not found: {column_name}")
 
 
@@ -94,9 +94,7 @@ def analyze_row(
     analysis_start_perf = time.perf_counter()
     ai_payload = client.analyze(text_value) if client and text_value else {}
     analysis_completed_at = datetime.now(timezone.utc)
-    analysis_elapsed_seconds = (
-        time.perf_counter() - analysis_start_perf if text_value else 0.0
-    )
+    analysis_elapsed_seconds = time.perf_counter() - analysis_start_perf if text_value else 0.0
 
     raw_result = ai_payload.get("result") or ""
     answers = parse_answers(raw_result)
@@ -130,10 +128,78 @@ def analyze_row(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ensure_ascii = get_bool_setting("JSON_ENSURE_ASCII", default=False)
-    output_path.write_text(
-        json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
     return output_path, True, analysis_elapsed_seconds
+
+
+def _build_dry_run_item(
+    input_file: Path,
+    sheet_name: str,
+    column_name: str,
+    row_index: int,
+    output_dir: Path,
+    use_case: str,
+    overwrite: bool,
+    verbose: bool,
+) -> tuple[BatchItemResult, bool]:
+    row_key = f"{use_case}|{input_file}|{sheet_name}|{column_name}|{row_index}"
+    output_path = _output_path_for_row(output_dir, row_key)
+    url = f"excel://{Path(input_file).name}/{sheet_name}/{column_name}/{row_index}"
+    is_skip = not overwrite and should_skip(output_path)
+    if verbose:
+        print(f"skip: {output_path.name}" if is_skip else f"would save: {output_path.name}")
+    item = BatchItemResult(
+        page_path=f"{input_file}#{sheet_name}:{column_name}:{row_index}",
+        output_path=str(output_path),
+        url=url,
+        saved=False,
+        elapsed_seconds=None,
+    )
+    return item, is_skip
+
+
+def _build_processed_item(
+    input_file: Path,
+    sheet_name: str,
+    column_name: str,
+    row_index: int,
+    raw_value: str | None,
+    identifier_value,
+    output_dir: Path,
+    client,
+    use_case: str,
+    source_type: str,
+    source_path: str,
+    overwrite: bool,
+    row_identifier_column: str | None,
+    verbose: bool,
+) -> tuple[BatchItemResult, bool, float | None]:
+    url = f"excel://{Path(input_file).name}/{sheet_name}/{column_name}/{row_index}"
+    output_path, saved, elapsed = analyze_row(
+        input_file=input_file,
+        sheet_name=sheet_name,
+        column_name=column_name,
+        row_index=row_index,
+        raw_value=raw_value,
+        output_dir=output_dir,
+        client=client,
+        use_case=use_case,
+        source_type=source_type,
+        source_path=source_path,
+        overwrite=overwrite,
+        row_identifier_column=row_identifier_column,
+        row_identifier_value=str(identifier_value) if identifier_value is not None else None,
+    )
+    if verbose:
+        print(f"saved: {output_path.name}" if saved else f"skip: {output_path.name}")
+    item = BatchItemResult(
+        page_path=f"{input_file}#{sheet_name}:{column_name}:{row_index}",
+        output_path=str(output_path),
+        url=url,
+        saved=saved,
+        elapsed_seconds=elapsed,
+    )
+    return item, not saved, elapsed
 
 
 def run_batch(
@@ -165,64 +231,33 @@ def run_batch(
         header_row=header_row,
         identifier_column=row_identifier_column,
     ):
-        row_key = f"{use_case}|{input_file}|{sheet_name}|{column_name}|{row_index}"
-        output_path = _output_path_for_row(output_dir, row_key)
-        url = f"excel://{Path(input_file).name}/{sheet_name}/{column_name}/{row_index}"
         if dry_run:
-            saved = False
-            if not overwrite and should_skip(output_path):
-                skipped += 1
-                if verbose:
-                    print(f"skip: {output_path.name}")
-            elif verbose:
-                print(f"would save: {output_path.name}")
-            items.append(
-                BatchItemResult(
-                    page_path=f"{input_file}#{sheet_name}:{column_name}:{row_index}",
-                    output_path=str(output_path),
-                    url=url,
-                    saved=saved,
-                    elapsed_seconds=None,
-                )
+            item, is_skip = _build_dry_run_item(
+                input_file, sheet_name, column_name, row_index, output_dir, use_case, overwrite, verbose
             )
-            count += 1
-            if max_items and count >= max_items:
-                break
-            continue
-
-        output_path, saved, elapsed = analyze_row(
-            input_file=input_file,
-            sheet_name=sheet_name,
-            column_name=column_name,
-            row_index=row_index,
-            raw_value=raw_value,
-            output_dir=output_dir,
-            client=client,
-            use_case=use_case,
-            source_type=source_type,
-            source_path=source_path,
-            overwrite=overwrite,
-            row_identifier_column=row_identifier_column,
-            row_identifier_value=str(identifier_value) if identifier_value is not None else None,
-        )
-        if not saved:
+            elapsed = None
+        else:
+            item, is_skip, elapsed = _build_processed_item(
+                input_file,
+                sheet_name,
+                column_name,
+                row_index,
+                raw_value,
+                identifier_value,
+                output_dir,
+                client,
+                use_case,
+                source_type,
+                source_path,
+                overwrite,
+                row_identifier_column,
+                verbose,
+            )
+        items.append(item)
+        if is_skip:
             skipped += 1
-            if verbose:
-                print(f"skip: {output_path.name}")
-        elif verbose:
-            print(f"saved: {output_path.name}")
-
         if elapsed is not None:
             total_elapsed_seconds += elapsed
-        items.append(
-            BatchItemResult(
-                page_path=f"{input_file}#{sheet_name}:{column_name}:{row_index}",
-                output_path=str(output_path),
-                url=url,
-                saved=saved,
-                elapsed_seconds=elapsed,
-            )
-        )
         count += 1
         if max_items and count >= max_items:
             break

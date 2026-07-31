@@ -69,20 +69,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
-    """Run uvicorn server."""
-    repo_root = Path(__file__).resolve().parents[1]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
-    args = parse_args()
+def _apply_config_env(args: argparse.Namespace, repo_root: Path) -> None:
     config_path = Path(args.config_file) if args.config_file else (repo_root / ".env.api")
     if not config_path.is_absolute():
         config_path = (repo_root / config_path).resolve()
     if not config_path.exists():
         raise SystemExit(
-            f"Config file not found: {config_path}. "
-            "Create .env.api at repo root or pass --config-file <path>."
+            f"Config file not found: {config_path}. " "Create .env.api at repo root or pass --config-file <path>."
         )
 
     os.environ["MISSION_CONFIG_FILE"] = str(config_path)
@@ -97,22 +90,30 @@ def main() -> int:
     if args.api_key:
         os.environ["API_API_KEY"] = args.api_key
 
-    selected_port = args.port
+
+def _select_port(args: argparse.Namespace) -> int:
     max_attempts = max(args.port_fallback_attempts, 0)
     for offset in range(max_attempts + 1):
-        candidate_port = args.port + offset
+        candidate_port = int(args.port) + offset
         if not _is_port_in_use(args.host, candidate_port):
-            selected_port = candidate_port
-            break
-    else:
-        last_port = args.port + max_attempts
-        raise SystemExit(
-            f"No free port found in range {args.port}-{last_port}. "
-            "Pass --port to select another starting port."
-        )
+            if candidate_port != args.port:
+                print(f"Port {args.port} is in use. Retrying on port {candidate_port}...")
+            return candidate_port
+    last_port = args.port + max_attempts
+    raise SystemExit(
+        f"No free port found in range {args.port}-{last_port}. " "Pass --port to select another starting port."
+    )
 
-    if selected_port != args.port:
-        print(f"Port {args.port} is in use. Retrying on port {selected_port}...")
+
+def main() -> int:
+    """Run uvicorn server."""
+    repo_root = Path(__file__).resolve().parents[1]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    args = parse_args()
+    _apply_config_env(args, repo_root)
+    selected_port = _select_port(args)
 
     uvicorn.run(
         "api.app:app",

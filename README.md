@@ -2,6 +2,10 @@
 
 <img src="assets/images/Mission_AIpossible_logo.png" alt="Mission AIpossible logo" width="240">
 
+[![Pipeline](https://ci.eionet.europa.eu/buildStatus/icon?job=EEA-AI%2Feea-ai-mission-aipossible%2Ftest2-cicd-skill&subject=test2-cicd-skill)](https://ci.eionet.europa.eu/view/Github/job/EEA-AI/job/eea-ai-mission-aipossible/job/test2-cicd-skill/display/redirect)
+[![Quality Gate](https://sonarqube.eea.europa.eu/api/project_badges/quality_gate?project=eea-ai-mission-aipossible)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible)
+[![Coverage](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&metric=coverage)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible)
+
 A lightweight pipeline to collect and analyse 'EU Mission on Adaptation' related data.
 
 ## Setup

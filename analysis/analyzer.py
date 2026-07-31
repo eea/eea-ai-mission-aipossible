@@ -82,9 +82,7 @@ def analyze_page(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ensure_ascii = get_bool_setting("JSON_ENSURE_ASCII", default=False)
-    output_path.write_text(
-        json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
     return output_path, True, analysis_elapsed_seconds
 
 
@@ -109,6 +107,61 @@ class BatchRunStats:
     items: list[BatchItemResult]
 
 
+def _build_dry_run_item(
+    page_path: Path,
+    output_dir: Path,
+    overwrite: bool,
+    verbose: bool,
+) -> tuple[BatchItemResult, bool]:
+    page = load_page_json(page_path)
+    url = str(page.get("url") or "")
+    output_path = output_path_for_url(output_dir, url)
+    is_skip = not overwrite and should_skip(output_path)
+    if verbose:
+        print(f"skip: {output_path.name}" if is_skip else f"would save: {output_path.name}")
+    item = BatchItemResult(
+        page_path=str(page_path),
+        output_path=str(output_path),
+        url=url,
+        saved=False,
+        elapsed_seconds=None,
+    )
+    return item, is_skip
+
+
+def _build_processed_item(
+    page_path: Path,
+    output_dir: Path,
+    client,
+    overwrite: bool,
+    verbose: bool,
+    use_case: str | None,
+    source_type: str,
+    source_path: str | None,
+) -> tuple[BatchItemResult, bool, float | None]:
+    page = load_page_json(page_path)
+    url = str(page.get("url") or "")
+    output_path, saved, elapsed = analyze_page(
+        page_path,
+        output_dir,
+        client,
+        overwrite=overwrite,
+        use_case=use_case,
+        source_type=source_type,
+        source_path=source_path,
+    )
+    if verbose:
+        print(f"saved: {output_path.name}" if saved else f"skip: {output_path.name}")
+    item = BatchItemResult(
+        page_path=str(page_path),
+        output_path=str(output_path),
+        url=url,
+        saved=saved,
+        elapsed_seconds=elapsed,
+    )
+    return item, not saved, elapsed
+
+
 def run_batch(
     input_dir: Path,
     output_dir: Path,
@@ -127,57 +180,25 @@ def run_batch(
     total_elapsed_seconds = 0.0
     items: list[BatchItemResult] = []
     for page_path in iter_pages(input_dir):
-        page = load_page_json(page_path)
-        url = str(page.get("url") or "")
-        output_path = output_path_for_url(output_dir, url)
         if dry_run:
-            saved = False
-            if not overwrite and should_skip(output_path):
-                skipped += 1
-                if verbose:
-                    print(f"skip: {output_path.name}")
-            elif verbose:
-                print(f"would save: {output_path.name}")
-            items.append(
-                BatchItemResult(
-                    page_path=str(page_path),
-                    output_path=str(output_path),
-                    url=url,
-                    saved=saved,
-                    elapsed_seconds=None,
-                )
+            item, is_skip = _build_dry_run_item(page_path, output_dir, overwrite, verbose)
+            elapsed = None
+        else:
+            item, is_skip, elapsed = _build_processed_item(
+                page_path,
+                output_dir,
+                client,
+                overwrite,
+                verbose,
+                use_case,
+                source_type,
+                source_path or str(input_dir),
             )
-            count += 1
-            if max_items and count >= max_items:
-                break
-            continue
-
-        output_path, saved, elapsed = analyze_page(
-            page_path,
-            output_dir,
-            client,
-            overwrite=overwrite,
-            use_case=use_case,
-            source_type=source_type,
-            source_path=source_path or str(input_dir),
-        )
-        if not saved:
+        items.append(item)
+        if is_skip:
             skipped += 1
-            if verbose:
-                print(f"skip: {output_path.name}")
-        elif verbose:
-            print(f"saved: {output_path.name}")
         if elapsed is not None:
             total_elapsed_seconds += elapsed
-        items.append(
-            BatchItemResult(
-                page_path=str(page_path),
-                output_path=str(output_path),
-                url=url,
-                saved=saved,
-                elapsed_seconds=elapsed,
-            )
-        )
         count += 1
         if max_items and count >= max_items:
             break

@@ -4,6 +4,61 @@ import json
 from pathlib import Path
 
 
+def _render_content(data: dict, include_header: bool) -> str:
+    ai_result = data.get("ai_result") or ""
+    header = _build_header(data) if include_header else ""
+    if header:
+        return header + "\n" + ai_result.strip() + "\n"
+    return ai_result.strip() + "\n"
+
+
+def _export_single_file(
+    path: Path,
+    content: str,
+    output_dir: Path,
+    overwrite: bool,
+    verbose: bool,
+    dry_run: bool,
+) -> bool:
+    """Write one Markdown file; return True if it counts as saved, False if skipped."""
+    output_path = output_dir / (path.stem + ".md")
+    if output_path.exists() and not overwrite:
+        if verbose:
+            print(f"skip: {output_path.name}")
+        return False
+    if dry_run:
+        if verbose:
+            print(f"would save: {output_path.name}")
+        return True
+    output_path.write_text(content, encoding="utf-8")
+    if verbose:
+        print(f"saved: {output_path.name}")
+    return True
+
+
+def _export_combined_file(
+    combined_lines: list[str],
+    output_dir: Path,
+    overwrite: bool,
+    verbose: bool,
+    dry_run: bool,
+) -> bool:
+    """Write the combined Markdown file; return True if saved, False if skipped."""
+    combined_path = output_dir / "all.md"
+    if combined_path.exists() and not overwrite:
+        if verbose:
+            print(f"skip: {combined_path.name}")
+        return False
+    if dry_run:
+        if verbose:
+            print(f"would save: {combined_path.name}")
+        return True
+    combined_path.write_text("\n\n".join(combined_lines).strip() + "\n", encoding="utf-8")
+    if verbose:
+        print(f"saved: {combined_path.name}")
+    return True
+
+
 def export_analysis_to_md(
     input_dir: Path,
     output_dir: Path,
@@ -14,6 +69,7 @@ def export_analysis_to_md(
     dry_run: bool = False,
 ) -> None:
     """Export analysis results from JSON files to Markdown format.
+
     Args:
         input_dir: Directory containing analysis JSON files.
         output_dir: Directory to save exported Markdown files.
@@ -22,6 +78,7 @@ def export_analysis_to_md(
         overwrite: If True, overwrite existing files.
         verbose: If True, print progress messages.
         dry_run: If True, simulate the export without writing files.
+
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     files = sorted(input_dir.glob("*.json"))
@@ -31,48 +88,20 @@ def export_analysis_to_md(
     skipped = 0
     for path in files:
         data = json.loads(path.read_text(encoding="utf-8"))
-        ai_result = data.get("ai_result") or ""
-        header = _build_header(data) if include_header else ""
-        if header:
-            content = header + "\n" + ai_result.strip() + "\n"
-        else:
-            content = ai_result.strip() + "\n"
-
+        content = _render_content(data, include_header)
         if combine:
             combined_lines.append(content)
-        else:
-            output_path = output_dir / (path.stem + ".md")
-            if output_path.exists() and not overwrite:
-                skipped += 1
-                if verbose:
-                    print(f"skip: {output_path.name}")
-                continue
-            if dry_run:
-                saved += 1
-                if verbose:
-                    print(f"would save: {output_path.name}")
-                continue
-            output_path.write_text(content, encoding="utf-8")
+            continue
+        if _export_single_file(path, content, output_dir, overwrite, verbose, dry_run):
             saved += 1
-            if verbose:
-                print(f"saved: {output_path.name}")
+        else:
+            skipped += 1
 
     if combine:
-        combined_path = output_dir / "all.md"
-        if combined_path.exists() and not overwrite:
-            skipped += 1
-            if verbose:
-                print(f"skip: {combined_path.name}")
+        outcome = _export_combined_file(combined_lines, output_dir, overwrite, verbose, dry_run)
+        if outcome is False:
             return
-        if dry_run:
-            saved += 1
-            if verbose:
-                print(f"would save: {combined_path.name}")
-        else:
-            combined_path.write_text("\n\n".join(combined_lines).strip() + "\n", encoding="utf-8")
-            saved += 1
-            if verbose:
-                print(f"saved: {combined_path.name}")
+        saved += 1
 
     if verbose:
         print(f"done: saved={saved} skipped={skipped}")

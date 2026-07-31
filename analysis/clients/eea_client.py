@@ -44,8 +44,7 @@ class EEAClient(BaseAIClient):
             status_code = getattr(exc, "status_code", None)
             if status_code == 403:
                 raise ProviderRequestError(
-                    "Provider 'eea' rejected the request with status 403. "
-                    "Check API key, model access, and API_URL.",
+                    "Provider 'eea' rejected the request with status 403. " "Check API key, model access, and API_URL.",
                     upstream_status_code=status_code,
                 ) from exc
             raise ProviderRequestError(

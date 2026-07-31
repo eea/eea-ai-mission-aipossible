@@ -3,6 +3,7 @@
 import asyncio
 
 from scrapy.http import HtmlResponse, Request
+
 from adaptation_stories.spiders.adaptation_stories_home import (
     AdaptationStoriesHomeSpider,
 )
