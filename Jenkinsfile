@@ -87,21 +87,21 @@ pipeline {
                   --ignore=tests/test_analysis_api.py \
                   --ignore=tests/test_run_analysis_api_script.py \
                   --junitxml=/app/reports/junit.xml \
-                  --cov=analysis \
-                  --cov=api \
-                  --cov=pre_analysis \
-                  --cov=exporters \
-                  --cov=adaptation_stories \
-                  --cov=scripts \
-                  --cov=main \
-                  --cov=env_settings \
+                  --cov=. \
                   --cov-report=term-missing \
                   --cov-report=lcov:/app/reports/coverage/lcov.info \
+                  --cov-report=xml:/app/reports/coverage/coverage.xml \
                   --cov-report=html:/app/reports/coverage/lcov-report
               '
             ''')
-            sh script: 'docker cp "$UNIT_CONTAINER":/app/reports/junit.xml xunit-reports-current/junit.xml', returnStatus: true
-            sh script: 'docker cp "$UNIT_CONTAINER":/app/reports/coverage xunit-reports-current/coverage', returnStatus: true
+            def unitJunitCp = sh(script: 'docker cp "$UNIT_CONTAINER":/app/reports/junit.xml xunit-reports-current/junit.xml', returnStatus: true)
+            if (unitJunitCp != 0) {
+              echo "WARNING: docker cp of unit junit.xml failed (exit ${unitJunitCp}) — Sonarqube will see no unit test results"
+            }
+            def unitCovCp = sh(script: 'docker cp "$UNIT_CONTAINER":/app/reports/coverage xunit-reports-current/coverage', returnStatus: true)
+            if (unitCovCp != 0) {
+              echo "WARNING: docker cp of unit coverage failed (exit ${unitCovCp}) — Sonarqube will see 0% unit coverage"
+            }
           } finally {
             catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
               junit testResults: 'xunit-reports-current/junit.xml', allowEmptyResults: true
@@ -166,15 +166,21 @@ pipeline {
                 mkdir -p /app/reports/coverage &&
                 pytest tests/test_analysis_api.py tests/test_run_analysis_api_script.py \
                   --junitxml=/app/reports/junit.xml \
-                  --cov=api \
-                  --cov=scripts \
+                  --cov=. \
                   --cov-report=term-missing \
                   --cov-report=lcov:/app/reports/coverage/lcov.info \
+                  --cov-report=xml:/app/reports/coverage/coverage.xml \
                   --cov-report=html:/app/reports/coverage/lcov-report
               '
             ''')
-            sh script: 'docker cp "$IT_CONTAINER":/app/reports/junit.xml integration-reports-current/junit.xml', returnStatus: true
-            sh script: 'docker cp "$IT_CONTAINER":/app/reports/coverage integration-reports-current/coverage', returnStatus: true
+            def itJunitCp = sh(script: 'docker cp "$IT_CONTAINER":/app/reports/junit.xml integration-reports-current/junit.xml', returnStatus: true)
+            if (itJunitCp != 0) {
+              echo "WARNING: docker cp of integration junit.xml failed (exit ${itJunitCp}) — Sonarqube will see no integration test results"
+            }
+            def itCovCp = sh(script: 'docker cp "$IT_CONTAINER":/app/reports/coverage integration-reports-current/coverage', returnStatus: true)
+            if (itCovCp != 0) {
+              echo "WARNING: docker cp of integration coverage failed (exit ${itCovCp}) — Sonarqube will see 0% integration coverage"
+            }
           } finally {
             catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
               junit testResults: 'integration-reports-current/junit.xml', allowEmptyResults: true
@@ -209,6 +215,14 @@ pipeline {
           } else {
             env.sonarParams = " -Dsonar.branch.name=${env.BRANCH_NAME} "
           }
+          // Confirm what's actually on disk before scanning — if a report is
+          // missing, this makes it obvious in the log instead of only
+          // showing up as a cryptic "no report found" warning from Sonar.
+          sh '''
+            echo "--- report files feeding Sonarqube ---"
+            ls -la xunit-reports-current integration-reports-current \
+              xunit-reports-current/coverage integration-reports-current/coverage 2>&1 || true
+          '''
           withSonarQubeEnv(env.SONARQUBE_SERVER) {
             sh """
               export PATH=${scannerHome}/bin:$PATH
@@ -220,7 +234,7 @@ pipeline {
                 -Dsonar.tests=./tests \
                 -Dsonar.junit.reportPaths=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
                 -Dsonar.python.xunit.reportPath=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
-                -Dsonar.javascript.lcov.reportPaths=./xunit-reports-current/coverage/lcov.info,./integration-reports-current/coverage/lcov.info \
+                -Dsonar.python.coverage.reportPaths=./xunit-reports-current/coverage/coverage.xml,./integration-reports-current/coverage/coverage.xml \
                 ${env.sonarParams}
             """
           }

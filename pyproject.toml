@@ -62,3 +62,11 @@ line_length = 120
 
 [tool.pytest.ini_options]
 addopts = "--basetemp=.pytest_tmp -p no:cacheprovider"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "ui/*",
+    "*/site-packages/*",
+]
