@@ -98,7 +98,7 @@ pipeline {
             if (unitJunitCp != 0) {
               echo "WARNING: docker cp of unit junit.xml failed (exit ${unitJunitCp}) — Sonarqube will see no unit test results"
             }
-            def unitCovCp = sh(script: 'docker cp "$UNIT_CONTAINER":/app/reports/coverage xunit-reports-current/coverage', returnStatus: true)
+            def unitCovCp = sh(script: 'docker cp "$UNIT_CONTAINER":/app/reports/coverage/. xunit-reports-current/coverage', returnStatus: true)
             if (unitCovCp != 0) {
               echo "WARNING: docker cp of unit coverage failed (exit ${unitCovCp}) — Sonarqube will see 0% unit coverage"
             }
@@ -177,7 +177,7 @@ pipeline {
             if (itJunitCp != 0) {
               echo "WARNING: docker cp of integration junit.xml failed (exit ${itJunitCp}) — Sonarqube will see no integration test results"
             }
-            def itCovCp = sh(script: 'docker cp "$IT_CONTAINER":/app/reports/coverage integration-reports-current/coverage', returnStatus: true)
+            def itCovCp = sh(script: 'docker cp "$IT_CONTAINER":/app/reports/coverage/. integration-reports-current/coverage', returnStatus: true)
             if (itCovCp != 0) {
               echo "WARNING: docker cp of integration coverage failed (exit ${itCovCp}) — Sonarqube will see 0% integration coverage"
             }
@@ -233,7 +233,7 @@ pipeline {
                 -Dsonar.sources=./adaptation_stories,./analysis,./api,./exporters,./pre_analysis,./scripts,./ui/src \
                 -Dsonar.tests=./tests \
                 -Dsonar.junit.reportPaths=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
-                -Dsonar.python.xunit.reportPath=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
+                -Dsonar.python.xunit.reportPath=./*-reports-current/junit.xml \
                 -Dsonar.python.coverage.reportPaths=./xunit-reports-current/coverage/coverage.xml,./integration-reports-current/coverage/coverage.xml \
                 ${env.sonarParams}
             """
