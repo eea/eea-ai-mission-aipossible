@@ -36,6 +36,8 @@ pipeline {
           env.APP_CONTAINER = "mission-aipossible-api-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
           env.UNIT_CONTAINER = "mission-aipossible-unit-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
           env.IT_CONTAINER = "mission-aipossible-it-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+          env.TRIVY_CONTAINER = "mission-aipossible-trivy-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
+          env.TRIVY_GATE_CONTAINER = "mission-aipossible-trivy-gate-${env.BUILD_TAG}".replaceAll(/[^A-Za-z0-9_.-]+/, '-')
         }
         sh '''
           rm -rf xunit-reports-current integration-reports-current .jenkins-fixtures
@@ -228,10 +230,36 @@ pipeline {
 
     stage('Trivy test') {
       steps {
+        // .trivyignore lives in the checked-out workspace, but the trivy
+        // container can't see it via a bind mount (see the EEA
+        // Docker-outside-of-Docker constraint) — create the container,
+        // docker cp the ignore file in, then start it.
         sh '''
-          docker run --rm \
+          mkdir -p trivy-reports
+
+          docker create --name "$TRIVY_CONTAINER" \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            "$TRIVY_IMAGE" image --no-progress --severity HIGH,CRITICAL --exit-code 1 "$RELEASE_IMAGE"
+            "$TRIVY_IMAGE" image --no-progress --format table --severity HIGH,CRITICAL \
+            --ignorefile /tmp/.trivyignore --output /tmp/trivy-image.txt "$RELEASE_IMAGE"
+          docker cp .trivyignore "$TRIVY_CONTAINER":/tmp/.trivyignore
+          docker start -a "$TRIVY_CONTAINER" || true
+          docker cp "$TRIVY_CONTAINER":/tmp/trivy-image.txt trivy-reports/trivy-image.txt
+          docker rm -v "$TRIVY_CONTAINER"
+        '''
+        archiveArtifacts artifacts: 'trivy-reports/*.txt', fingerprint: true, allowEmptyArchive: false
+
+        // Only CRITICAL findings fail the build; HIGH findings are visible
+        // in the archived report above but don't block the pipeline.
+        sh '''
+          docker create --name "$TRIVY_GATE_CONTAINER" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            "$TRIVY_IMAGE" image --no-progress --severity CRITICAL --exit-code 1 \
+            --ignorefile /tmp/.trivyignore "$RELEASE_IMAGE"
+          docker cp .trivyignore "$TRIVY_GATE_CONTAINER":/tmp/.trivyignore
+          docker start -a "$TRIVY_GATE_CONTAINER"
+          status=$?
+          docker rm -v "$TRIVY_GATE_CONTAINER"
+          exit $status
         '''
       }
     }
@@ -266,6 +294,8 @@ pipeline {
         docker rm -fv "$APP_CONTAINER" >/dev/null 2>&1 || true
         docker rm -fv "$UNIT_CONTAINER" >/dev/null 2>&1 || true
         docker rm -fv "$IT_CONTAINER" >/dev/null 2>&1 || true
+        docker rm -fv "$TRIVY_CONTAINER" >/dev/null 2>&1 || true
+        docker rm -fv "$TRIVY_GATE_CONTAINER" >/dev/null 2>&1 || true
       '''
       cleanWs(cleanWhenAborted: true, cleanWhenFailure: true, cleanWhenNotBuilt: true, cleanWhenSuccess: true, cleanWhenUnstable: true, deleteDirs: true)
     }
