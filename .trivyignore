@@ -1,3 +1,13 @@
 # Temporary: Twisted fix is currently only available as a release candidate.
 # Twisted is pulled in via Scrapy. Revisit when a stable Twisted release is available.
 CVE-2026-42304
+
+# perl-base 5.40.1-6 on Debian 13 (trixie, the base of python:3.11-slim).
+# Debian has not published a fixed perl-base package for any of these yet
+# (Trivy shows no "Fixed Version"). perl-base is a transitive OS/apt
+# dependency here, not something the application invokes. Revisit when
+# Debian ships a patched perl-base and drop these once it lands.
+CVE-2026-13221
+CVE-2026-42496
+CVE-2026-57433
+CVE-2026-8376

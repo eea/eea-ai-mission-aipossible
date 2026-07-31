@@ -1,21 +1,20 @@
 """Application services for analysis API endpoints."""
 
-from dataclasses import dataclass
 import json
 import re
 import shutil
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from analysis.analyzer import BatchRunStats, run_batch as run_pages_batch
+from analysis.analyzer import BatchRunStats
+from analysis.analyzer import run_batch as run_pages_batch
 from analysis.clients.base import ProviderRequestError
 from analysis.clients.env_loader import load_env_file
 from analysis.clients.factory import get_client
 from analysis.excel_analyzer import run_batch as run_excel_batch
-from env_settings import get_str_setting
-from exporters.analysis_excel_exporter import export_analysis_to_excel
 from api.models import (
     AnalysisResultDocument,
     AnalysisResultListResponse,
@@ -24,7 +23,8 @@ from api.models import (
     AnalysisRunRequest,
     AnalysisRunResponse,
 )
-
+from env_settings import get_str_setting
+from exporters.analysis_excel_exporter import export_analysis_to_excel
 
 RESULT_ID_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -34,6 +34,7 @@ DEFAULT_API_OUTPUT_DIR = "data/analysis"
 DEFAULT_API_EXPORT_DIR = "data/exports"
 DEFAULT_API_PROVIDER = "mock"
 DEFAULT_USE_CASES_CONFIG = "config/analysis_use_cases.json"
+__all__ = ["ProviderRequestError", "UseCaseConfigurationError"]
 
 
 class UseCaseConfigurationError(RuntimeError):
@@ -146,7 +147,10 @@ def _resolve_use_case(use_case: str) -> UseCaseConfig:
     user_prompt_path_value = str(selected.get("user_prompt_path") or "").strip()
     if not source_type or not source_path_value or not system_prompt_path_value or not user_prompt_path_value:
         raise UseCaseConfigurationError(
-            f"Use case '{use_case_name}' must define source_type, source_path, system_prompt_path, and user_prompt_path."
+            (
+                f"Use case '{use_case_name}' must define source_type, source_path, "
+                "system_prompt_path, and user_prompt_path."
+            )
         )
 
     source_path = _resolve_path(source_path_value)
@@ -176,9 +180,7 @@ def _resolve_use_case(use_case: str) -> UseCaseConfig:
                 f"Use case '{use_case_name}' must define sheet_name and column_name for excel."
             )
         if header_row < 1:
-            raise UseCaseConfigurationError(
-                f"Use case '{use_case_name}' must define header_row >= 1."
-            )
+            raise UseCaseConfigurationError(f"Use case '{use_case_name}' must define header_row >= 1.")
         return UseCaseConfig(
             name=use_case_name,
             source_type=source_type,
@@ -191,9 +193,7 @@ def _resolve_use_case(use_case: str) -> UseCaseConfig:
             row_identifier_column=row_identifier_column,
         )
 
-    raise UseCaseConfigurationError(
-        f"Use case '{use_case_name}' has unsupported source_type: {source_type}"
-    )
+    raise UseCaseConfigurationError(f"Use case '{use_case_name}' has unsupported source_type: {source_type}")
 
 
 def _build_client(
@@ -233,28 +233,20 @@ def _build_client(
 def _load_system_prompt_override(use_case: UseCaseConfig) -> str:
     path = use_case.system_prompt_path
     if not path.exists() or not path.is_file():
-        raise UseCaseConfigurationError(
-            f"System prompt file not found for use case '{use_case.name}': {path}"
-        )
+        raise UseCaseConfigurationError(f"System prompt file not found for use case '{use_case.name}': {path}")
     content = path.read_text(encoding="utf-8").strip()
     if not content:
-        raise UseCaseConfigurationError(
-            f"System prompt file is empty for use case '{use_case.name}': {path}"
-        )
+        raise UseCaseConfigurationError(f"System prompt file is empty for use case '{use_case.name}': {path}")
     return content
 
 
 def _load_user_prompt_override(use_case: UseCaseConfig) -> str:
     path = use_case.user_prompt_path
     if not path.exists() or not path.is_file():
-        raise UseCaseConfigurationError(
-            f"User prompt file not found for use case '{use_case.name}': {path}"
-        )
+        raise UseCaseConfigurationError(f"User prompt file not found for use case '{use_case.name}': {path}")
     content = path.read_text(encoding="utf-8").strip()
     if not content:
-        raise UseCaseConfigurationError(
-            f"User prompt file is empty for use case '{use_case.name}': {path}"
-        )
+        raise UseCaseConfigurationError(f"User prompt file is empty for use case '{use_case.name}': {path}")
     return content
 
 
@@ -427,7 +419,7 @@ def list_results(output_dir: str | None, limit: int, offset: int) -> AnalysisRes
         reverse=True,
     )
     total = len(files)
-    selected = files[offset:offset + limit]
+    selected = files[offset : offset + limit]
 
     items: list[AnalysisResultSummary] = []
     for file_path in selected:

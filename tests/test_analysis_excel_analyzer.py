@@ -1,8 +1,8 @@
 import json
 from pathlib import Path
 
-from openpyxl import Workbook
 import pytest
+from openpyxl import Workbook
 
 from analysis.excel_analyzer import run_batch
 

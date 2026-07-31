@@ -1,6 +1,4 @@
-"""
-Spider for scraping case studies links from the data and downloads listing page.
-"""
+"""Spider for scraping case studies links from the data and downloads listing page."""
 
 import scrapy
 from scrapy.selector import Selector
@@ -8,21 +6,20 @@ from scrapy_playwright.page import PageMethod
 
 
 class CaseStudiesHomeSpider(scrapy.Spider):
-    """
-    Spider for scraping case study links from the data and downloads listing page.
+    """Spider for scraping case study links from the data and downloads listing page.
 
     This spider uses Scrapy with Playwright integration to handle dynamic content loading.
     It paginates through result pages, extracts item links and titles, and yields them as items.
     """
 
     name = "case_studies_home"
-    allowed_domains = ["climate-adapt.eea.europa.eu"]
-    start_urls = [
-        "https://climate-adapt.eea.europa.eu/en/data-and-downloads?size=n_200_n&filters%5B0%5D%5Bfield%5D=language&filters%5B0%5D%5Btype%5D=any&filters%5B0%5D%5Bvalues%5D%5B0%5D=en&filters%5B1%5D%5Bfield%5D=objectProvides&filters%5B1%5D%5Bvalues%5D%5B0%5D=Case%20study&filters%5B1%5D%5Bvalues%5D%5B1%5D=Mission%20story&filters%5B1%5D%5Btype%5D=any&filters%5B2%5D%5Bfield%5D=issued.date&filters%5B2%5D%5Bvalues%5D%5B0%5D=Last%205%20years&filters%5B2%5D%5Btype%5D=any&sort-field=issued.date&sort-direction=desc"
-    ]
+    allowed_domains = ["climate-adapt.eea.europa.eu"]  # noqa: RUF012
 
     def __init__(self, max_pages=10, use_playwright="false", **kwargs):
         super().__init__(**kwargs)
+        self.start_urls = [
+            "https://climate-adapt.eea.europa.eu/en/data-and-downloads?size=n_200_n&filters%5B0%5D%5Bfield%5D=language&filters%5B0%5D%5Btype%5D=any&filters%5B0%5D%5Bvalues%5D%5B0%5D=en&filters%5B1%5D%5Bfield%5D=objectProvides&filters%5B1%5D%5Bvalues%5D%5B0%5D=Case%20study&filters%5B1%5D%5Bvalues%5D%5B1%5D=Mission%20story&filters%5B1%5D%5Btype%5D=any&filters%5B2%5D%5Bfield%5D=issued.date&filters%5B2%5D%5Bvalues%5D%5B0%5D=Last%205%20years&filters%5B2%5D%5Btype%5D=any&sort-field=issued.date&sort-direction=desc"
+        ]
         try:
             max_pages_int = int(max_pages)
         except (TypeError, ValueError):
@@ -31,8 +28,7 @@ class CaseStudiesHomeSpider(scrapy.Spider):
         self.use_playwright = str(use_playwright).lower() in {"1", "true", "yes", "y"}
 
     async def start(self):
-        """
-        Starts the crawling process by generating Scrapy requests for each URL in `start_urls`.
+        """Starts the crawling process by generating Scrapy requests for each URL in `start_urls`.
         Each request is configured to use Playwright for rendering JavaScript content and waits
         for result items before proceeding.
         """
@@ -49,14 +45,14 @@ class CaseStudiesHomeSpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse, meta=meta)
 
     async def parse(self, response):
-        """
-        Parses each listing page, extracts item links and titles, and paginates through results.
+        """Parses each listing page, extracts item links and titles, and paginates through results.
 
         Args:
             response (scrapy.http.Response): The response object containing the page content.
 
         Yields:
             dict: A dictionary with 'url' and 'title' keys for each item found.
+
         """
         page = response.meta.get("playwright_page")
         seen = set()
@@ -66,7 +62,7 @@ class CaseStudiesHomeSpider(scrapy.Spider):
                     await page.click(f"button.pagination-item:has-text('{page_num}')")
                     try:
                         await page.wait_for_load_state("networkidle", timeout=30000)
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         self.logger.warning(
                             "Timed out waiting for page %d to settle: %s",
                             page_num,
@@ -80,9 +76,7 @@ class CaseStudiesHomeSpider(scrapy.Spider):
                 selector = Selector(text=html)
                 cards = selector.css("div.u-item.listing-item.result-item")
                 if not cards:
-                    self.logger.warning(
-                        "No result-item links found on page %d.", page_num
-                    )
+                    self.logger.warning("No result-item links found on page %d.", page_num)
                     continue
 
                 for card in cards:

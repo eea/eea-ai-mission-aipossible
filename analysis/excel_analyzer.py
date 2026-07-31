@@ -25,7 +25,7 @@ def _find_column_index(worksheet, header_row: int, column_name: str) -> int:
     target = normalize_text(column_name)
     for cell in worksheet[header_row]:
         if normalize_text(cell.value) == target:
-            return cell.column
+            return int(cell.column)
     raise ValueError(f"Column header not found: {column_name}")
 
 
@@ -94,9 +94,7 @@ def analyze_row(
     analysis_start_perf = time.perf_counter()
     ai_payload = client.analyze(text_value) if client and text_value else {}
     analysis_completed_at = datetime.now(timezone.utc)
-    analysis_elapsed_seconds = (
-        time.perf_counter() - analysis_start_perf if text_value else 0.0
-    )
+    analysis_elapsed_seconds = time.perf_counter() - analysis_start_perf if text_value else 0.0
 
     raw_result = ai_payload.get("result") or ""
     answers = parse_answers(raw_result)
@@ -130,13 +128,11 @@ def analyze_row(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ensure_ascii = get_bool_setting("JSON_ENSURE_ASCII", default=False)
-    output_path.write_text(
-        json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
     return output_path, True, analysis_elapsed_seconds
 
 
-def run_batch(
+def run_batch(  # noqa: C901
     input_file: Path,
     sheet_name: str,
     column_name: str,

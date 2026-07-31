@@ -82,9 +82,7 @@ def analyze_page(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     ensure_ascii = get_bool_setting("JSON_ENSURE_ASCII", default=False)
-    output_path.write_text(
-        json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(analysis, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
     return output_path, True, analysis_elapsed_seconds
 
 
@@ -109,7 +107,7 @@ class BatchRunStats:
     items: list[BatchItemResult]
 
 
-def run_batch(
+def run_batch(  # noqa: C901
     input_dir: Path,
     output_dir: Path,
     client,

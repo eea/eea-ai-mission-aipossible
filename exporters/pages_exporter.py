@@ -5,6 +5,7 @@ from pathlib import Path
 
 from env_settings import get_bool_setting
 
+
 def export_pages_to_jsonl(
     input_dir: Path,
     output_path: Path,
@@ -20,6 +21,7 @@ def export_pages_to_jsonl(
         overwrite: If True, overwrite existing output.
         verbose: If True, print progress messages.
         dry_run: If True, simulate the export without writing outputs.
+
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     files = sorted(input_dir.glob("*.json"))

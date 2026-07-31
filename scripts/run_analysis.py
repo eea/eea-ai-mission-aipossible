@@ -6,17 +6,22 @@ from datetime import datetime
 from pathlib import Path
 
 from analysis.analyzer import run_batch
-from analysis.excel_analyzer import run_batch as run_excel_batch
 from analysis.clients.env_loader import load_env_file
 from analysis.clients.factory import get_client
-from api.service import UseCaseConfig, UseCaseConfigurationError, _load_system_prompt_override, _load_user_prompt_override, _resolve_use_case
+from analysis.excel_analyzer import run_batch as run_excel_batch
+from api.service import (
+    UseCaseConfig,
+    UseCaseConfigurationError,
+    _load_system_prompt_override,
+    _load_user_prompt_override,
+    _resolve_use_case,
+)
 
 repo_root = Path(__file__).resolve().parents[1]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """
-    Parses command-line arguments for the AI analysis script.
+    """Parses command-line arguments for the AI analysis script.
 
     Returns:
         argparse.Namespace: Namespace containing parsed arguments:
@@ -36,6 +41,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             --overwrite: Overwrite existing analysis files.
             --dry-run: Show what would be processed without writing outputs.
             --file: Specify a single JSON file in the pages folder to analyze (overrides --input).
+
     """
     parser = argparse.ArgumentParser(description="Run AI analysis over saved pages.")
     repo_root_path = Path(__file__).resolve().parents[1]
@@ -216,12 +222,12 @@ def _resolve_use_case_overrides(args: argparse.Namespace, argv: list[str]) -> Us
     )
 
 
-def main() -> int:
-    """
-    Main function to parse arguments, set up environment, and run AI analysis batch.
+def main() -> int:  # noqa: C901
+    """Main function to parse arguments, set up environment, and run AI analysis batch.
 
     Returns:
         int: Exit code (0 for success).
+
     """
     argv = sys.argv[1:]
     args = parse_args(argv)
@@ -232,9 +238,7 @@ def main() -> int:
     api_key = args.api_key or key_values.get("API_KEY") or key_values.get("AI_API_KEY") or ""
     prompts_dir = (repo_root / "analysis/prompts").resolve()
     output_base = (
-        _require_absolute_path(args.output, "--output")
-        if _explicit_flag(argv, "--output")
-        else Path(args.output)
+        _require_absolute_path(args.output, "--output") if _explicit_flag(argv, "--output") else Path(args.output)
     )
     effective_timestamped_output_dir = args.timestamped_output_dir or bool(args.use_case)
     output_dir = resolve_output_dir(str(output_base), effective_timestamped_output_dir)
@@ -283,12 +287,13 @@ def main() -> int:
         if use_case_config and use_case_config.source_type != "pages":
             raise ValueError("--file can only be used with page-based analysis.")
         from analysis.utils import load_page_json, output_path_for_url
+
         page_path = _require_absolute_path(args.file, "--file")
         page = load_page_json(page_path)
         output_path_file = output_path_for_url(output_dir, page.get("url", ""))
-        from analysis.analyzer import analyze_page
         # Check if file exists and should be skipped
-        from analysis.analyzer import should_skip
+        from analysis.analyzer import analyze_page, should_skip
+
         if not args.overwrite and should_skip(output_path_file):
             print(f"skip: {output_path_file.name} (already exists, use --overwrite to replace)")
             return 0
@@ -333,9 +338,7 @@ def main() -> int:
             use_case_config.source_path
             if use_case_config
             else (
-                _require_absolute_path(args.input, "--input")
-                if _explicit_flag(argv, "--input")
-                else Path(args.input)
+                _require_absolute_path(args.input, "--input") if _explicit_flag(argv, "--input") else Path(args.input)
             )
         )
         if use_case_config and not input_dir.is_dir():
