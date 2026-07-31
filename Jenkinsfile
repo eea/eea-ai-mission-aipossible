@@ -235,6 +235,7 @@ pipeline {
                 -Dsonar.junit.reportPaths=./xunit-reports-current/junit.xml,./integration-reports-current/junit.xml \
                 -Dsonar.python.xunit.reportPath=./*-reports-current/junit.xml \
                 -Dsonar.python.coverage.reportPaths=./xunit-reports-current/coverage/coverage.xml,./integration-reports-current/coverage/coverage.xml \
+                -Dsonar.coverage.exclusions=ui/src/**,adaptation_stories/settings.py,adaptation_stories/middlewares.py,adaptation_stories/pipelines.py,main.py,scripts/run_analysis_api.py,scripts/run_pre_analysis.py \
                 ${env.sonarParams}
             """
           }
