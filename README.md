@@ -2,11 +2,12 @@
 
 <img src="assets/images/Mission_AIpossible_logo.png" alt="Mission AIpossible logo" width="240">
 
-[![Pipeline](https://ci.eionet.europa.eu/buildStatus/icon?job=EEA-AI%2Feea-ai-mission-aipossible%2Ftest2-cicd-skill&subject=test2-cicd-skill)](https://ci.eionet.europa.eu/view/Github/job/EEA-AI/job/eea-ai-mission-aipossible/job/test2-cicd-skill/display/redirect)
 [![Quality Gate](https://sonarqube.eea.europa.eu/api/project_badges/quality_gate?project=eea-ai-mission-aipossible&branch=test2-cicd-skill)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
+
+[![Pipeline](https://ci.eionet.europa.eu/buildStatus/icon?job=EEA-AI%2Feea-ai-mission-aipossible%2Ftest2-cicd-skill&subject=test2-cicd-skill)](https://ci.eionet.europa.eu/view/Github/job/EEA-AI/job/eea-ai-mission-aipossible/job/test2-cicd-skill/display/redirect)
 [![Coverage](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=coverage)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
 [![Duplications](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=duplicated_lines_density)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
-[![Security Hotspots Reviewed](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=security_hotspots_reviewed)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
+[![Security Hotspots](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=security_hotspots)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
 [![Maintainability](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=sqale_rating)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
 [![Reliability](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=reliability_rating)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
 [![Security](https://sonarqube.eea.europa.eu/api/project_badges/measure?project=eea-ai-mission-aipossible&branch=test2-cicd-skill&metric=security_rating)](https://sonarqube.eea.europa.eu/dashboard?id=eea-ai-mission-aipossible&branch=test2-cicd-skill)
