@@ -12,7 +12,7 @@ pipeline {
     IMAGE_BASENAME_TEST = 'mission-aipossible-test'
     IMAGE_BASENAME_RELEASE = 'mission-aipossible-release'
     DOCKERHUB_REPOSITORY = 'eeacms/eea-ai-mission-aipossible'
-    DOCKERHUB_CREDENTIALS_ID = 'dockerhub'
+    DOCKERHUB_CREDENTIALS_ID = 'jekinsdockerhub'
     SONARQUBE_SERVER = 'Sonarqube'
     SONAR_SCANNER_TOOL = 'SonarQubeScanner'
     TRIVY_IMAGE = 'aquasec/trivy:0.57.1'
