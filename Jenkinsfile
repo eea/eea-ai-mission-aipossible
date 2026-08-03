@@ -9,6 +9,9 @@ pipeline {
   }
 
   environment {
+    // Checked via the GitHub API (repos/eea/eea-ai-mission-aipossible ->
+    // default_branch), not assumed — EEA repos aren't all on 'main'.
+    DEFAULT_BRANCH = 'main'
     IMAGE_BASENAME_TEST = 'mission-aipossible-test'
     IMAGE_BASENAME_RELEASE = 'mission-aipossible-release'
     DOCKERHUB_REPOSITORY = 'eeacms/eea-ai-mission-aipossible'
@@ -46,7 +49,7 @@ pipeline {
               error("Git tag (${env.TAG_NAME}) does not match pyproject.toml version (${env.BASE_VERSION}) — bump pyproject.toml to match the tag before releasing.")
             }
             env.VERSION = env.TAG_NAME
-          } else if (env.BRANCH_NAME == 'main') {
+          } else if (env.BRANCH_NAME == env.DEFAULT_BRANCH) {
             env.VERSION = env.BASE_VERSION
           } else {
             env.VERSION = "${env.BASE_VERSION}-${env.SANITIZED_BRANCH}-${env.BUILD_NUMBER}-${env.GIT_SHA_SHORT}"
@@ -277,7 +280,7 @@ pipeline {
     stage('Release on Docker Hub') {
       when {
         anyOf {
-          branch 'main'
+          expression { env.BRANCH_NAME == env.DEFAULT_BRANCH }
           buildingTag()
         }
       }
@@ -294,7 +297,7 @@ pipeline {
               docker tag "$RELEASE_IMAGE" "$DOCKERHUB_VERSION_TAG"
               docker push "$DOCKERHUB_VERSION_TAG"
             fi
-            if [ "$BRANCH_NAME" = "main" ]; then
+            if [ "$BRANCH_NAME" = "$DEFAULT_BRANCH" ]; then
               docker tag "$RELEASE_IMAGE" "$DOCKERHUB_LATEST_TAG"
               docker push "$DOCKERHUB_LATEST_TAG"
             fi
