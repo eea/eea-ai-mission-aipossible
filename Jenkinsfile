@@ -37,7 +37,20 @@ pipeline {
           ).trim()
           env.GIT_SHA_SHORT = sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()
           env.SANITIZED_BRANCH = (env.BRANCH_NAME ?: 'detached').replaceAll(/[^A-Za-z0-9_.-]+/, '-')
-          env.VERSION = (env.BRANCH_NAME == 'main' || env.TAG_NAME) ? env.BASE_VERSION : "${env.BASE_VERSION}-${env.SANITIZED_BRANCH}-${env.BUILD_NUMBER}-${env.GIT_SHA_SHORT}"
+          if (env.TAG_NAME) {
+            // The Docker image tag must be the git tag itself, not an
+            // independently-maintained version file — otherwise a stale
+            // pyproject.toml silently produces a Docker tag that doesn't
+            // match the release it was supposedly built from.
+            if (env.BASE_VERSION != env.TAG_NAME) {
+              error("Git tag (${env.TAG_NAME}) does not match pyproject.toml version (${env.BASE_VERSION}) — bump pyproject.toml to match the tag before releasing.")
+            }
+            env.VERSION = env.TAG_NAME
+          } else if (env.BRANCH_NAME == 'main') {
+            env.VERSION = env.BASE_VERSION
+          } else {
+            env.VERSION = "${env.BASE_VERSION}-${env.SANITIZED_BRANCH}-${env.BUILD_NUMBER}-${env.GIT_SHA_SHORT}"
+          }
           env.TEST_IMAGE = "${env.IMAGE_BASENAME_TEST}:${env.BUILD_NUMBER}"
           env.RELEASE_IMAGE = "${env.IMAGE_BASENAME_RELEASE}:${env.BUILD_NUMBER}"
           env.DOCKERHUB_VERSION_TAG = "${env.DOCKERHUB_REPOSITORY}:${env.VERSION}"
