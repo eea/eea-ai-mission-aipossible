@@ -286,8 +286,14 @@ pipeline {
           sh '''
             set -euo pipefail
             echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            docker tag "$RELEASE_IMAGE" "$DOCKERHUB_VERSION_TAG"
-            docker push "$DOCKERHUB_VERSION_TAG"
+            # A version-numbered tag must correspond to an actual git tag
+            # (release) — a plain main-branch merge only updates :latest,
+            # otherwise every merge would push a "0.1.0" image before
+            # 0.1.0 has actually been released.
+            if [ -n "${TAG_NAME:-}" ]; then
+              docker tag "$RELEASE_IMAGE" "$DOCKERHUB_VERSION_TAG"
+              docker push "$DOCKERHUB_VERSION_TAG"
+            fi
             if [ "$BRANCH_NAME" = "main" ]; then
               docker tag "$RELEASE_IMAGE" "$DOCKERHUB_LATEST_TAG"
               docker push "$DOCKERHUB_LATEST_TAG"
