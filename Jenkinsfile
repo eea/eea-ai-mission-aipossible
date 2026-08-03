@@ -11,10 +11,8 @@ pipeline {
   environment {
     IMAGE_BASENAME_TEST = 'mission-aipossible-test'
     IMAGE_BASENAME_RELEASE = 'mission-aipossible-release'
-    IMAGE_NAME = 'mission-aipossible'
     DOCKERHUB_REPOSITORY = 'eeacms/eea-ai-mission-aipossible'
     DOCKERHUB_CREDENTIALS_ID = 'jekinsdockerhub'
-    EEA_JENKINS_TOKEN_CREDENTIALS_ID = 'eea-jenkins-token'
     SONARQUBE_SERVER = 'Sonarqube'
     SONAR_SCANNER_TOOL = 'SonarQubeScanner'
     TRIVY_IMAGE = 'aquasec/trivy:0.57.1'
@@ -276,17 +274,6 @@ pipeline {
       }
     }
 
-    stage('Multi-platform build check') {
-      steps {
-        sh '''
-          ls /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null || docker run --privileged --rm tonistiigi/binfmt --install arm64
-          docker buildx create --name "${IMAGE_NAME}-builder" --driver docker-container 2>/dev/null || true
-          docker buildx use "${IMAGE_NAME}-builder"
-          docker buildx build --platform linux/amd64,linux/arm64 .
-        '''
-      }
-    }
-
     stage('Release on Docker Hub') {
       when {
         anyOf {
@@ -298,41 +285,14 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
           sh '''
             set -euo pipefail
-            ls /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null || docker run --privileged --rm tonistiigi/binfmt --install arm64
-            docker buildx create --name "${IMAGE_NAME}-builder" --driver docker-container 2>/dev/null || true
-            docker buildx use "${IMAGE_NAME}-builder"
             echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker tag "$RELEASE_IMAGE" "$DOCKERHUB_VERSION_TAG"
+            docker push "$DOCKERHUB_VERSION_TAG"
             if [ "$BRANCH_NAME" = "main" ]; then
-              docker buildx build --platform linux/amd64,linux/arm64 -t "$DOCKERHUB_VERSION_TAG" -t "$DOCKERHUB_LATEST_TAG" --push .
-            else
-              docker buildx build --platform linux/amd64,linux/arm64 -t "$DOCKERHUB_VERSION_TAG" --push .
+              docker tag "$RELEASE_IMAGE" "$DOCKERHUB_LATEST_TAG"
+              docker push "$DOCKERHUB_LATEST_TAG"
             fi
             docker logout
-          '''
-        }
-      }
-    }
-
-    stage('Release helm chart (on tag)') {
-      when {
-        buildingTag()
-      }
-      steps {
-        withCredentials([
-          string(credentialsId: env.EEA_JENKINS_TOKEN_CREDENTIALS_ID, variable: 'GITHUB_TOKEN'),
-          usernamePassword(credentialsId: env.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')
-        ]) {
-          sh '''
-            docker pull eeacms/gitflow
-            docker run -i --rm --name="$BUILD_TAG-release" \
-              -e GIT_BRANCH="$BRANCH_NAME" \
-              -e GIT_NAME="eea-ai-mission-aipossible" \
-              -e DOCKERHUB_REPO="$DOCKERHUB_REPOSITORY" \
-              -e GIT_TOKEN="$GITHUB_TOKEN" \
-              -e DOCKERHUB_USER="$DOCKERHUB_USER" \
-              -e DOCKERHUB_PASS="$DOCKERHUB_PASS" \
-              -e GITFLOW_BEHAVIOR="RUN_ON_TAG" \
-              eeacms/gitflow
           '''
         }
       }
