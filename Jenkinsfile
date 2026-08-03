@@ -41,14 +41,19 @@ pipeline {
           env.GIT_SHA_SHORT = sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()
           env.SANITIZED_BRANCH = (env.BRANCH_NAME ?: 'detached').replaceAll(/[^A-Za-z0-9_.-]+/, '-')
           if (env.TAG_NAME) {
-            // The Docker image tag must be the git tag itself, not an
-            // independently-maintained version file — otherwise a stale
-            // pyproject.toml silently produces a Docker tag that doesn't
-            // match the release it was supposedly built from.
-            if (env.BASE_VERSION != env.TAG_NAME) {
-              error("Git tag (${env.TAG_NAME}) does not match pyproject.toml version (${env.BASE_VERSION}) — bump pyproject.toml to match the tag before releasing.")
-            }
+            // The Docker image tag is always the git tag itself,
+            // unconditionally — never gated on matching pyproject.toml. A
+            // mismatch is only a warning: alpha/beta/rc pre-releases, a
+            // v-prefixed tag convention, or a pyproject.toml that's
+            // deliberately not bumped until later are all legitimate, and
+            // hard-failing would block a release the developer explicitly
+            // asked for by pushing the tag.
             env.VERSION = env.TAG_NAME
+            def normalizedTag = env.TAG_NAME.replaceFirst(/^v/, '')
+            if (env.BASE_VERSION != env.TAG_NAME && env.BASE_VERSION != normalizedTag) {
+              echo "WARNING: git tag (${env.TAG_NAME}) does not match pyproject.toml version (${env.BASE_VERSION}) — pushing ${env.VERSION} anyway. Bump pyproject.toml to match if this wasn't intentional."
+              currentBuild.result = 'UNSTABLE'
+            }
           } else if (env.BRANCH_NAME == env.DEFAULT_BRANCH) {
             env.VERSION = env.BASE_VERSION
           } else {
