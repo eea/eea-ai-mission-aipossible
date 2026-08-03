@@ -46,8 +46,7 @@ class BaseAIClient:
         self.prompt_version = self._compute_prompt_version()
 
     def analyze(self, text: str) -> dict:
-        """
-        Analyze the given text and return the analysis results as a dictionary.
+        """Analyze the given text and return the analysis results as a dictionary.
 
         Args:
             text (str): The text to be analyzed.
@@ -57,6 +56,7 @@ class BaseAIClient:
 
         Raises:
             NotImplementedError: If the method is not implemented in a subclass.
+
         """
         raise NotImplementedError
 
@@ -111,8 +111,7 @@ class BaseAIClient:
 
         if count <= 0:
             raise ValueError(
-                f"Invalid question count '{token}' in user prompt. "
-                "Question count must be a positive integer."
+                f"Invalid question count '{token}' in user prompt. " "Question count must be a positive integer."
             )
         return count
 
@@ -158,16 +157,11 @@ class BaseAIClient:
             if len(parts) == 2 and parts[0] in tens and parts[1] in ones:
                 return tens[parts[0]] + ones[parts[1]]
         raise ValueError(
-            f"Unsupported number word '{token}' in user prompt. "
-            "Use digits (e.g. 10) or English number words."
+            f"Unsupported number word '{token}' in user prompt. " "Use digits (e.g. 10) or English number words."
         )
 
     def _generate_response_format(self, question_count: int) -> str:
-        schema = {
-            "answers": {
-                f"Answer {index}": "" for index in range(1, question_count + 1)
-            }
-        }
+        schema = {"answers": {f"Answer {index}": "" for index in range(1, question_count + 1)}}
         schema_json = json.dumps(schema, indent=2, ensure_ascii=False)
         return (
             "Return ONLY valid JSON. Use this exact schema with string values:\n\n"

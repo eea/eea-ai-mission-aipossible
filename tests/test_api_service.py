@@ -1,21 +1,21 @@
-from pathlib import Path
 import re
 import zipfile
+from pathlib import Path
 
-from api.models import AnalysisRunRequest
 from analysis.analyzer import BatchRunStats
+from api.models import AnalysisRunRequest
 from api.service import (
     REPO_ROOT,
+    UseCaseConfig,
+    UseCaseConfigurationError,
     _build_client,
     _resolve_use_case,
     build_excel_export_workbook,
+    build_run_download_archive,
     get_default_export_dir,
     get_default_output_dir,
     get_default_provider,
-    build_run_download_archive,
     start_run,
-    UseCaseConfig,
-    UseCaseConfigurationError,
 )
 
 
@@ -310,9 +310,7 @@ def test_start_run_creates_timestamped_subfolder(monkeypatch, tmp_path):
     monkeypatch.setattr("api.service._load_user_prompt_override", lambda config: "user prompt")
     monkeypatch.setattr("api.service.get_default_output_dir", lambda: str(output_root_dir))
 
-    response = start_run(
-        AnalysisRunRequest(use_case="adaptation_stories")
-    )
+    response = start_run(AnalysisRunRequest(use_case="adaptation_stories"))
 
     assert response.warnings == []
     actual_output_dir = Path(response.output_dir)
@@ -359,8 +357,7 @@ def test_start_run_passes_user_prompt_override_to_build_client(monkeypatch, tmp_
 
     start_run(
         AnalysisRunRequest(
-            use_case="adaptation_stories",
-            user_prompt="I would like you to analyse the following 2 questions."
+            use_case="adaptation_stories", user_prompt="I would like you to analyse the following 2 questions."
         )
     )
 
@@ -374,7 +371,7 @@ def test_build_run_download_archive_creates_zip(tmp_path):
     run_dir.mkdir(parents=True)
     (run_dir / "file.json").write_text('{"a": 1}', encoding="utf-8")
 
-    archive_path, temp_dir = build_run_download_archive(run_id=run_id, output_root=str(output_root))
+    archive_path, _temp_dir = build_run_download_archive(run_id=run_id, output_root=str(output_root))
 
     assert archive_path.exists()
     assert archive_path.name == f"{run_id}.zip"
@@ -448,9 +445,7 @@ def test_start_run_uses_configured_default_dirs(monkeypatch, tmp_path):
     monkeypatch.setattr("api.service._load_user_prompt_override", lambda config: "user prompt")
     monkeypatch.setattr("api.service.get_default_output_dir", lambda: str(default_output))
 
-    response = start_run(
-        AnalysisRunRequest(use_case="adaptation_stories")
-    )
+    response = start_run(AnalysisRunRequest(use_case="adaptation_stories"))
 
     actual_output_dir = Path(response.output_dir)
     assert actual_output_dir.parent == default_output

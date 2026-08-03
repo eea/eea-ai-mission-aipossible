@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from analysis.analyzer import run_batch
 from analysis.utils import output_path_for_url

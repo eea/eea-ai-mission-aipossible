@@ -1,6 +1,6 @@
-"""
-Spider for scraping adaptation stories links from the Mission Stories home page using Scrapy and Playwright.
-"""
+"""Spider for scraping adaptation stories links from the Mission Stories home page using Scrapy and Playwright."""
+
+from typing import ClassVar
 
 import scrapy
 from scrapy.selector import Selector
@@ -8,8 +8,7 @@ from scrapy_playwright.page import PageMethod
 
 
 class AdaptationStoriesHomeSpider(scrapy.Spider):
-    """
-    Spider for scraping adaptation stories from the Mission Stories page.
+    """Spider for scraping adaptation stories from the Mission Stories page.
 
     This spider uses Scrapy with Playwright integration to handle dynamic content loading.
     It navigates through paginated results, extracts story links and titles, and yields them as items.
@@ -24,11 +23,12 @@ class AdaptationStoriesHomeSpider(scrapy.Spider):
         __init__(max_pages=10, **kwargs): Initializes the spider with a configurable number of pages.
         start(): Starts the crawling process, yielding requests with Playwright enabled.
         parse(response): Parses each page, extracts story links and titles, and handles pagination.
+
     """
 
     name = "adaptation_stories_home"
-    allowed_domains = ["climate-adapt.eea.europa.eu"]
-    start_urls = [
+    allowed_domains: ClassVar[list[str]] = ["climate-adapt.eea.europa.eu"]
+    start_urls = [  # noqa: RUF012 -- scrapy.Spider types this as an instance var, ClassVar conflicts with mypy
         "https://climate-adapt.eea.europa.eu/en/mission/solutions/mission-stories",
     ]
 
@@ -41,8 +41,7 @@ class AdaptationStoriesHomeSpider(scrapy.Spider):
         self.max_pages = max(1, max_pages_int)
 
     async def start(self):
-        """
-        Starts the crawling process by generating Scrapy requests for each URL in `start_urls`.
+        """Starts the crawling process by generating Scrapy requests for each URL in `start_urls`.
         Each request is configured to use Playwright for rendering JavaScript content and waits for a specific
         selector before proceeding.
         """
@@ -63,14 +62,14 @@ class AdaptationStoriesHomeSpider(scrapy.Spider):
             )
 
     async def parse(self, response):
-        """
-        Parses a page of mission stories, extracts story links and titles, paginates through results, and yields items.
+        """Parse a page of mission stories, extract links/titles, paginate, and yield items.
 
         Args:
             response (scrapy.http.Response): The response object containing the page content.
 
         Yields:
             dict: A dictionary with 'url' and 'title' keys for each story found.
+
         """
         page = response.meta["playwright_page"]
         seen = set()
@@ -84,9 +83,7 @@ class AdaptationStoriesHomeSpider(scrapy.Spider):
                 selector = Selector(text=html)
                 cards = selector.css("div.u-item.listing-item.result-item")
                 if not cards:
-                    self.logger.warning(
-                        "No result-item links found on page %d.", page_num
-                    )
+                    self.logger.warning("No result-item links found on page %d.", page_num)
                     continue
 
                 for card in cards:

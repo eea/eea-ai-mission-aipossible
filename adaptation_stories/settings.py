@@ -1,5 +1,4 @@
-"""
-Scrapy settings for the adaptation_stories project.
+"""Scrapy settings for the adaptation_stories project.
 
 This file contains only settings considered important or commonly used.
 Consult the Scrapy documentation for more options:
@@ -11,7 +10,6 @@ Consult the Scrapy documentation for more options:
 import asyncio
 import os
 import sys
-
 
 if sys.platform == "win32":
     POLICY_CLS = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)

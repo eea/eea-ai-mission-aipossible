@@ -1,13 +1,12 @@
-from pathlib import Path
 import shutil
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
-from api.service import UseCaseConfig
 from analysis.analyzer import BatchRunStats
+from api.service import UseCaseConfig
 from scripts import run_analysis
-
 
 TEST_ROOT = Path(__file__).resolve().parents[1] / ".test_tmp_run_analysis"
 

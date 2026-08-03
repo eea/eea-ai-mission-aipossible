@@ -9,10 +9,11 @@ from exporters.analysis_excel_exporter import export_analysis_to_excel
 
 
 def parse_args() -> argparse.Namespace:
-    """
-    Parse command-line arguments for the export analysis script.
+    """Parse command-line arguments for the export analysis script.
+
     Returns:
         argparse.Namespace: Parsed command-line arguments.
+
     """
     repo_root = Path(__file__).resolve().parents[1]
     env_values = load_env_file(repo_root / ".env")
@@ -78,11 +79,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """
-    Main function to parse arguments and export analysis JSON files to a single Excel workbook.
+    """Main function to parse arguments and export analysis JSON files to a single Excel workbook.
 
     Returns:
         int: Exit code (0 for success).
+
     """
     args = parse_args()
     input_dir = Path(args.input)

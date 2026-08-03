@@ -4,7 +4,6 @@ from fastapi.testclient import TestClient
 
 from api.app import app
 
-
 client = TestClient(app)
 
 
@@ -124,7 +123,9 @@ def test_run_endpoint_invalid_use_case_maps_to_400(monkeypatch):
 
 
 def test_run_endpoint_rejects_unknown_provider():
-    response = client.post("/v1/analysis/runs", json={"provider": "invalid-provider", "use_case": "adaptation_stories", "max_items": 1})
+    response = client.post(
+        "/v1/analysis/runs", json={"provider": "invalid-provider", "use_case": "adaptation_stories", "max_items": 1}
+    )
     assert response.status_code == 422
 
 
@@ -179,7 +180,7 @@ def test_run_endpoint_returns_500_for_use_case_configuration_error(monkeypatch):
 
 
 def test_run_endpoint_maps_provider_request_error(monkeypatch):
-    from api.service import ProviderRequestError
+    from analysis.clients.base import ProviderRequestError
 
     def _fake_start_run(_request):
         raise ProviderRequestError("Provider 'eea' rejected the request with status 403.")
@@ -336,7 +337,7 @@ def test_upload_prompt_endpoint_maps_use_case_configuration_error(monkeypatch):
 
 
 def test_upload_prompt_endpoint_maps_provider_request_error(monkeypatch):
-    from api.service import ProviderRequestError
+    from analysis.clients.base import ProviderRequestError
 
     def _fake_start_run(_request):
         raise ProviderRequestError("Provider 'eea' rejected the request with status 403.")

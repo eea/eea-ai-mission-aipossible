@@ -24,7 +24,7 @@ def _find_column_index(worksheet, header_row: int, column_header: str) -> int:
     target = normalize_text(column_header)
     for cell in worksheet[header_row]:
         if normalize_text(cell.value) == target:
-            return cell.column
+            return int(cell.column)
     raise ValueError(f"Column header not found: {column_header}")
 
 
@@ -123,9 +123,7 @@ def analyze_row(
             },
         }
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(payload, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-        )
+        output_path.write_text(json.dumps(payload, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
         return output_path, payload["status"]
 
     analysis_started_at = datetime.now(timezone.utc)
@@ -176,9 +174,7 @@ def analyze_row(
     }
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(payload, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(payload, ensure_ascii=ensure_ascii, indent=2), encoding="utf-8")
     return output_path, payload["status"]
 
 
@@ -199,7 +195,7 @@ def run_batch(
     """Run pre-analysis over a column with minimal console output."""
     rows_dir = output_dir / "rows"
     count = 0
-    skipped = Counter()
+    skipped: Counter[str] = Counter()
     processed_rows = []
 
     for row_index, raw_value in iter_column_rows(

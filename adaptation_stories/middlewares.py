@@ -1,6 +1,4 @@
-"""
-Spider middleware for the adaptation stories Scrapy project.
-"""
+"""Spider middleware for the adaptation stories Scrapy project."""
 
 # pylint: disable=unused-argument,no-self-use,missing-function-docstring
 # pylint: disable=missing-class-docstring,unnecessary-pass,consider-using-f-string
@@ -11,39 +9,32 @@ from scrapy import signals
 
 
 class AdaptationStoriesSpiderMiddleware:
-    """
-    Middleware for handling spider input, output, and exceptions in adaptation stories spiders.
+    """Middleware for handling spider input, output, and exceptions in adaptation stories spiders.
     You can customize request/response processing here.
     """
 
     @classmethod
     def from_crawler(cls, crawler):
-        """
-        Create middleware instance and connect signals.
-        """
+        """Create middleware instance and connect signals."""
         s = cls()
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 
     def process_spider_input(self, response, spider):
-        """
-        Called for each response that goes through the spider middleware and into the spider.
+        """Called for each response that goes through the spider middleware and into the spider.
         Should return None or raise an exception.
         """
         return None
 
     def process_spider_output(self, response, result, spider):
-        """
-        Called with the results returned from the Spider, after it has processed the response.
+        """Called with the results returned from the Spider, after it has processed the response.
         Must return an iterable of Request, or item objects.
         """
         for i in result:
             yield i
 
     def process_spider_exception(self, response, exception, spider):
-        """
-        Called when a spider or process_spider_input() method raises an exception.
-        """
+        """Called when a spider or process_spider_input() method raises an exception."""
         pass
 
     async def process_start(self, start):

@@ -6,17 +6,22 @@ from datetime import datetime
 from pathlib import Path
 
 from analysis.analyzer import run_batch
-from analysis.excel_analyzer import run_batch as run_excel_batch
 from analysis.clients.env_loader import load_env_file
 from analysis.clients.factory import get_client
-from api.service import UseCaseConfig, UseCaseConfigurationError, _load_system_prompt_override, _load_user_prompt_override, _resolve_use_case
+from analysis.excel_analyzer import run_batch as run_excel_batch
+from api.service import (
+    UseCaseConfig,
+    UseCaseConfigurationError,
+    _load_system_prompt_override,
+    _load_user_prompt_override,
+    _resolve_use_case,
+)
 
 repo_root = Path(__file__).resolve().parents[1]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """
-    Parses command-line arguments for the AI analysis script.
+    """Parses command-line arguments for the AI analysis script.
 
     Returns:
         argparse.Namespace: Namespace containing parsed arguments:
@@ -36,6 +41,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             --overwrite: Overwrite existing analysis files.
             --dry-run: Show what would be processed without writing outputs.
             --file: Specify a single JSON file in the pages folder to analyze (overrides --input).
+
     """
     parser = argparse.ArgumentParser(description="Run AI analysis over saved pages.")
     repo_root_path = Path(__file__).resolve().parents[1]
@@ -216,34 +222,9 @@ def _resolve_use_case_overrides(args: argparse.Namespace, argv: list[str]) -> Us
     )
 
 
-def main() -> int:
-    """
-    Main function to parse arguments, set up environment, and run AI analysis batch.
-
-    Returns:
-        int: Exit code (0 for success).
-    """
-    argv = sys.argv[1:]
-    args = parse_args(argv)
-    env_values = load_env_file(repo_root / f".env.{args.provider}")
-    key_values = load_env_file(repo_root / f".env.{args.provider}.keys")
-    model = args.model or env_values.get("MODEL") or env_values.get("AI_MODEL") or "stub"
-    api_url = args.api_url or env_values.get("API_URL") or ""
-    api_key = args.api_key or key_values.get("API_KEY") or key_values.get("AI_API_KEY") or ""
-    prompts_dir = (repo_root / "analysis/prompts").resolve()
-    output_base = (
-        _require_absolute_path(args.output, "--output")
-        if _explicit_flag(argv, "--output")
-        else Path(args.output)
-    )
-    effective_timestamped_output_dir = args.timestamped_output_dir or bool(args.use_case)
-    output_dir = resolve_output_dir(str(output_base), effective_timestamped_output_dir)
-    if effective_timestamped_output_dir and args.overwrite:
-        print(
-            "warning: --timestamped-output-dir creates a new folder on each run; "
-            "--overwrite does not make a difference."
-        )
-
+def _resolve_prompt_overrides(
+    args: argparse.Namespace, use_case_config: UseCaseConfig | None
+) -> tuple[str | None, str | None]:
     system_prompt_override = None
     if args.system_prompt_file and not args.use_case:
         system_prompt_override = _load_system_prompt_file(
@@ -255,19 +236,138 @@ def main() -> int:
             _require_absolute_path(args.user_prompt_file, "--user-prompt-file")
         )
 
+    if use_case_config:
+        system_prompt_override = _load_system_prompt_override(use_case_config)
+        if not user_prompt_override:
+            user_prompt_override = _load_user_prompt_override(use_case_config)
+
+    return system_prompt_override, user_prompt_override
+
+
+def _run_file_mode(
+    args: argparse.Namespace, output_dir: Path, use_case_config: UseCaseConfig | None, client
+) -> int | None:
+    """Run --file mode. Return an exit code for an early return, or None to fall through to main's epilogue."""
+    if use_case_config and use_case_config.source_type != "pages":
+        raise ValueError("--file can only be used with page-based analysis.")
+    from analysis.analyzer import analyze_page, should_skip
+    from analysis.utils import load_page_json, output_path_for_url
+
+    page_path = _require_absolute_path(args.file, "--file")
+    page = load_page_json(page_path)
+    output_path_file = output_path_for_url(output_dir, page.get("url", ""))
+    if not args.overwrite and should_skip(output_path_file):
+        print(f"skip: {output_path_file.name} (already exists, use --overwrite to replace)")
+        return 0
+    analyze_page(
+        page_path,
+        output_dir,
+        client,
+        overwrite=args.overwrite,
+        use_case=use_case_config.name if use_case_config else None,
+        source_type=use_case_config.source_type if use_case_config else "pages",
+        source_path=str(use_case_config.source_path) if use_case_config else str(page_path.parent),
+    )
+    return None
+
+
+def _run_excel_mode(args: argparse.Namespace, output_dir: Path, use_case_config: UseCaseConfig, client) -> int | None:
+    """Run excel-use-case mode. Return an exit code for an early return, or None to fall through."""
+    if not use_case_config.source_path.is_file():
+        print(
+            f"Error: Source file not found for use case '{use_case_config.name}': {use_case_config.source_path}",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        run_excel_batch(
+            input_file=use_case_config.source_path,
+            sheet_name=use_case_config.sheet_name or "",
+            column_name=use_case_config.column_name or "",
+            header_row=use_case_config.header_row,
+            output_dir=output_dir,
+            client=client,
+            max_items=args.max_items,
+            verbose=not args.quiet,
+            overwrite=args.overwrite,
+            dry_run=args.dry_run,
+            use_case=use_case_config.name,
+            source_type=use_case_config.source_type,
+            source_path=str(use_case_config.source_path),
+            row_identifier_column=use_case_config.row_identifier_column,
+        )
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    return None
+
+
+def _run_pages_mode(
+    args: argparse.Namespace,
+    argv: list[str],
+    output_dir: Path,
+    use_case_config: UseCaseConfig | None,
+    client,
+) -> int | None:
+    """Run page-batch mode. Return an exit code for an early return, or None to fall through."""
+    input_dir = (
+        use_case_config.source_path
+        if use_case_config
+        else (_require_absolute_path(args.input, "--input") if _explicit_flag(argv, "--input") else Path(args.input))
+    )
+    if use_case_config and not input_dir.is_dir():
+        print(
+            f"Error: Source directory not found for use case '{use_case_config.name}': {input_dir}",
+            file=sys.stderr,
+        )
+        return 1
+    run_batch(
+        input_dir=input_dir,
+        output_dir=output_dir,
+        client=client,
+        max_items=args.max_items,
+        verbose=not args.quiet,
+        overwrite=args.overwrite,
+        dry_run=args.dry_run,
+        use_case=use_case_config.name if use_case_config else None,
+        source_type=use_case_config.source_type if use_case_config else "pages",
+        source_path=str(use_case_config.source_path) if use_case_config else str(input_dir),
+    )
+    return None
+
+
+def main() -> int:
+    """Main function to parse arguments, set up environment, and run AI analysis batch.
+
+    Returns:
+        int: Exit code (0 for success).
+
+    """
+    argv = sys.argv[1:]
+    args = parse_args(argv)
+    env_values = load_env_file(repo_root / f".env.{args.provider}")
+    key_values = load_env_file(repo_root / f".env.{args.provider}.keys")
+    model = args.model or env_values.get("MODEL") or env_values.get("AI_MODEL") or "stub"
+    api_url = args.api_url or env_values.get("API_URL") or ""
+    api_key = args.api_key or key_values.get("API_KEY") or key_values.get("AI_API_KEY") or ""
+    prompts_dir = (repo_root / "analysis/prompts").resolve()
+    output_base = (
+        _require_absolute_path(args.output, "--output") if _explicit_flag(argv, "--output") else Path(args.output)
+    )
+    effective_timestamped_output_dir = args.timestamped_output_dir or bool(args.use_case)
+    output_dir = resolve_output_dir(str(output_base), effective_timestamped_output_dir)
+    if effective_timestamped_output_dir and args.overwrite:
+        print(
+            "warning: --timestamped-output-dir creates a new folder on each run; "
+            "--overwrite does not make a difference."
+        )
+
     try:
         use_case_config = _resolve_use_case_overrides(args, argv) if args.use_case else None
+        system_prompt_override, user_prompt_override = _resolve_prompt_overrides(args, use_case_config)
     except (UseCaseConfigurationError, ValueError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
-    if use_case_config:
-        try:
-            system_prompt_override = _load_system_prompt_override(use_case_config)
-            if not user_prompt_override:
-                user_prompt_override = _load_user_prompt_override(use_case_config)
-        except UseCaseConfigurationError as e:
-            print(f"Error: {e}", file=sys.stderr)
-            return 1
 
     client = get_client(
         provider=args.provider,
@@ -278,84 +378,16 @@ def main() -> int:
         user_prompt_template=user_prompt_override,
         system_prompt_template=system_prompt_override,
     )
-    # If --file is specified, run analysis only for that file
+    # Dispatch on mode: a single --file, an excel-backed use case, or page-batch mode.
     if args.file:
-        if use_case_config and use_case_config.source_type != "pages":
-            raise ValueError("--file can only be used with page-based analysis.")
-        from analysis.utils import load_page_json, output_path_for_url
-        page_path = _require_absolute_path(args.file, "--file")
-        page = load_page_json(page_path)
-        output_path_file = output_path_for_url(output_dir, page.get("url", ""))
-        from analysis.analyzer import analyze_page
-        # Check if file exists and should be skipped
-        from analysis.analyzer import should_skip
-        if not args.overwrite and should_skip(output_path_file):
-            print(f"skip: {output_path_file.name} (already exists, use --overwrite to replace)")
-            return 0
-        analyze_page(
-            page_path,
-            output_dir,
-            client,
-            overwrite=args.overwrite,
-            use_case=use_case_config.name if use_case_config else None,
-            source_type=use_case_config.source_type if use_case_config else "pages",
-            source_path=str(use_case_config.source_path) if use_case_config else str(page_path.parent),
-        )
+        early_exit_code = _run_file_mode(args, output_dir, use_case_config, client)
     elif use_case_config and use_case_config.source_type == "excel":
-        if not use_case_config.source_path.is_file():
-            print(
-                f"Error: Source file not found for use case '{use_case_config.name}': {use_case_config.source_path}",
-                file=sys.stderr,
-            )
-            return 1
-        try:
-            run_excel_batch(
-                input_file=use_case_config.source_path,
-                sheet_name=use_case_config.sheet_name or "",
-                column_name=use_case_config.column_name or "",
-                header_row=use_case_config.header_row,
-                output_dir=output_dir,
-                client=client,
-                max_items=args.max_items,
-                verbose=not args.quiet,
-                overwrite=args.overwrite,
-                dry_run=args.dry_run,
-                use_case=use_case_config.name,
-                source_type=use_case_config.source_type,
-                source_path=str(use_case_config.source_path),
-                row_identifier_column=use_case_config.row_identifier_column,
-            )
-        except ValueError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
-            return 1
+        early_exit_code = _run_excel_mode(args, output_dir, use_case_config, client)
     else:
-        input_dir = (
-            use_case_config.source_path
-            if use_case_config
-            else (
-                _require_absolute_path(args.input, "--input")
-                if _explicit_flag(argv, "--input")
-                else Path(args.input)
-            )
-        )
-        if use_case_config and not input_dir.is_dir():
-            print(
-                f"Error: Source directory not found for use case '{use_case_config.name}': {input_dir}",
-                file=sys.stderr,
-            )
-            return 1
-        run_batch(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            client=client,
-            max_items=args.max_items,
-            verbose=not args.quiet,
-            overwrite=args.overwrite,
-            dry_run=args.dry_run,
-            use_case=use_case_config.name if use_case_config else None,
-            source_type=use_case_config.source_type if use_case_config else "pages",
-            source_path=str(use_case_config.source_path) if use_case_config else str(input_dir),
-        )
+        early_exit_code = _run_pages_mode(args, argv, output_dir, use_case_config, client)
+    if early_exit_code is not None:
+        return early_exit_code
+
     if use_case_config:
         print(f"run_id: {output_dir.name}")
     return 0
