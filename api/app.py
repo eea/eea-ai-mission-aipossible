@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from api.models import (
+    MAX_USER_PROMPT_CHARS,
     AnalysisRunRequest,
     AnalysisRunResponse,
     HealthResponse,
@@ -130,7 +131,11 @@ async def run_analysis_with_prompt_file(
     if not filename.lower().endswith(".txt"):
         raise HTTPException(status_code=400, detail="Only .txt prompt files are supported")
 
-    payload = await prompt_file.read()
+    # UTF-8 uses at most 4 bytes per character; read one byte past the limit to detect oversized files.
+    max_prompt_bytes = MAX_USER_PROMPT_CHARS * 4
+    payload = await prompt_file.read(max_prompt_bytes + 1)
+    if len(payload) > max_prompt_bytes:
+        raise HTTPException(status_code=400, detail="Prompt file is too large")
     try:
         user_prompt = payload.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -139,6 +144,11 @@ async def run_analysis_with_prompt_file(
     normalized_prompt = user_prompt.strip()
     if not normalized_prompt:
         raise HTTPException(status_code=400, detail="Prompt file is empty")
+    if len(normalized_prompt) > MAX_USER_PROMPT_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Prompt file exceeds {MAX_USER_PROMPT_CHARS} characters",
+        )
 
     request = AnalysisRunRequest(
         use_case=use_case,
