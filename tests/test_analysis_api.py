@@ -285,6 +285,38 @@ def test_upload_prompt_endpoint_rejects_empty_prompt(monkeypatch):
     assert response.json()["detail"] == "Prompt file is empty"
 
 
+def test_upload_prompt_endpoint_rejects_too_many_characters(monkeypatch):
+    def _fake_start_run(_request):
+        raise AssertionError("start_run should not be called")
+
+    monkeypatch.setattr("api.app.start_run", _fake_start_run)
+
+    response = client.post(
+        "/v1/analysis/runs/upload-prompt",
+        files={"prompt_file": ("prompt.txt", b"a" * 50001, "text/plain")},
+        data={"use_case": "adaptation_stories"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Prompt file exceeds 50000 characters"
+
+
+def test_upload_prompt_endpoint_rejects_oversized_file(monkeypatch):
+    def _fake_start_run(_request):
+        raise AssertionError("start_run should not be called")
+
+    monkeypatch.setattr("api.app.start_run", _fake_start_run)
+
+    response = client.post(
+        "/v1/analysis/runs/upload-prompt",
+        files={"prompt_file": ("prompt.txt", b"a" * 200001, "text/plain")},
+        data={"use_case": "adaptation_stories"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Prompt file is too large"
+
+
 def test_upload_prompt_endpoint_maps_file_not_found(monkeypatch):
     def _fake_start_run(_request):
         raise FileNotFoundError("Input directory not found: C:/missing/pages")

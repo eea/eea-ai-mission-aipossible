@@ -47,4 +47,4 @@ jobs:
 
       - name: Run Bandit (high severity, medium+ confidence)
         run: |
-          bandit -r adaptation_stories analysis pre_analysis scripts exporters env_settings.py main.py -lll -ii
+          bandit -r adaptation_stories analysis api pre_analysis scripts exporters env_settings.py main.py -lll -ii

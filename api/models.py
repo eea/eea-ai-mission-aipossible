@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
+MAX_USER_PROMPT_CHARS = 50000
+
 
 class HealthResponse(BaseModel):
     """Health probe response."""
@@ -30,7 +32,7 @@ class AnalysisRunRequest(BaseModel):
     )
     user_prompt: str | None = Field(
         default=None,
-        max_length=50000,
+        max_length=MAX_USER_PROMPT_CHARS,
         description="Optional user prompt override for this run.",
     )
 
