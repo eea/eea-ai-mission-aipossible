@@ -14,6 +14,15 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Dependencies are declared in `pyproject.toml` and locked in `uv.lock`. `requirements.txt` is generated from the lock file, so do not edit it by hand. After changing dependencies, run:
+
+```powershell
+uv lock
+uv export --no-hashes --no-emit-project --no-annotate --format requirements-txt -o requirements.txt
+```
+
+The Tests workflow fails if `requirements.txt` is out of sync with `uv.lock`, and regenerates it automatically on Dependabot PRs.
+
 ## Run
 
 Generated data is kept separate from code:

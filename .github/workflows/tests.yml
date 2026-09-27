@@ -1,0 +1,87 @@
+name: Tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  EXPORT_CMD: uv export --no-hashes --no-emit-project --no-annotate --format requirements-txt -o requirements.txt
+
+jobs:
+  # Dependabot (uv ecosystem) updates pyproject.toml and uv.lock but not the exported
+  # requirements.txt, so regenerate it on Dependabot PRs and push it back to the PR branch.
+  sync-requirements:
+    name: Sync requirements.txt (Dependabot)
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+
+      - name: Regenerate requirements.txt from uv.lock
+        run: $EXPORT_CMD
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- requirements.txt; then
+            echo "requirements.txt already in sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(deps): regenerate requirements.txt from uv.lock" -- requirements.txt
+          git push
+
+  test:
+    name: Tests (Python ${{ matrix.python-version }})
+    needs: sync-requirements
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # On Dependabot PRs, test the branch head including the regenerated requirements.txt.
+          ref: ${{ github.actor == 'dependabot[bot]' && github.head_ref || '' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+
+      - name: Check uv.lock matches pyproject.toml
+        run: uv lock --check
+
+      - name: Check requirements.txt matches uv.lock
+        run: |
+          $EXPORT_CMD
+          if ! git diff --exit-code -- requirements.txt; then
+            echo "::error file=requirements.txt::requirements.txt is out of sync with uv.lock. Run: $EXPORT_CMD"
+            exit 1
+          fi
+
+      - name: Install requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -q
