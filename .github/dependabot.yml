@@ -19,6 +19,11 @@ updates:
       python-dependencies:
         patterns:
           - "*"
+    # pydantic pins an exact pydantic-core, so a lone pydantic-core bump is
+    # unresolvable and only ever edits requirements.txt (reverted by the sync
+    # job, leaving an empty PR). pydantic-core moves with pydantic in uv.lock.
+    ignore:
+      - dependency-name: "pydantic-core"
 
   - package-ecosystem: "github-actions"
     directory: "/"
