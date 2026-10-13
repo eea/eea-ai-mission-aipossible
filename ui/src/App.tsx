@@ -81,7 +81,7 @@ export default function App() {
                 </p>
               ) : useCases.length === 0 && healthStatus === 'ok' ? (
                 <p className="text-sm text-amber-600 text-center py-4">
-                  No use cases found. Check your <code className="bg-amber-50 px-1 rounded">config/analysis_use_cases.json</code>.
+                  No use cases found. Check your <code className="bg-amber-50 px-1 rounded-sm">config/analysis_use_cases.json</code>.
                 </p>
               ) : (
                 <RunForm useCases={useCases} loading={loading} onSubmit={handleSubmit} />
@@ -91,7 +91,7 @@ export default function App() {
 
           {/* Error banner */}
           {error && (
-            <div className="animate-fade-in rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3 shadow-sm">
+            <div className="animate-fade-in rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3 shadow-xs">
               <span className="text-red-400 text-base mt-0.5">✗</span>
               <p className="text-sm text-red-700">{error}</p>
             </div>

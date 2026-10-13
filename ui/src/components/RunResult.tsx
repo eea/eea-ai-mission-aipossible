@@ -9,7 +9,7 @@ function triggerDownload(url: string) {
 
 function StatCard({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm text-center">
+    <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-xs text-center">
       <div className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">{label}</div>
       <div className={`text-lg font-bold ${accent ?? 'text-gray-800'}`}>{value}</div>
     </div>
@@ -20,11 +20,11 @@ export function RunResult({ result }: { result: AnalysisRunResponse }) {
   return (
     <div className="animate-fade-in rounded-2xl border border-emerald-100 bg-white shadow-card overflow-hidden">
       {/* Header strip */}
-      <div className="bg-gradient-to-r from-brand-green to-emerald-500 px-5 py-3 flex items-center justify-between">
+      <div className="bg-linear-to-r from-brand-green to-emerald-500 px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-white font-semibold text-sm">
           <span className="text-lg">✓</span> Run complete
         </div>
-        <code className="text-xs text-white/70 font-mono bg-black/20 rounded px-2 py-0.5">
+        <code className="text-xs text-white/70 font-mono bg-black/20 rounded-sm px-2 py-0.5">
           {result.run_id}
         </code>
       </div>

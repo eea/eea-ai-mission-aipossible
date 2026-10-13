@@ -1,6 +1,68 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-blue: #1a4e8a;
+  --color-brand-blue-dark: #0f3362;
+  --color-brand-blue-light: #2563c4;
+  --color-brand-orange: #e8751a;
+  --color-brand-orange-light: #f5a05a;
+  --color-brand-green: #2e8b57;
+
+  --shadow-card:
+    0 4px 24px -4px rgba(0, 0, 0, 0.1), 0 1px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-card-lg:
+    0 8px 40px -8px rgba(0, 0, 0, 0.14), 0 2px 8px -2px rgba(0, 0, 0, 0.08);
+
+  --animate-fade-in: fade-in 0.35s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility input-field {
+  @apply w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm
+           text-gray-800 shadow-xs transition-all duration-150
+           focus:border-brand-blue focus:outline-hidden focus:ring-2 focus:ring-brand-blue/20
+           disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed;
+}
+
+@utility btn-primary {
+  @apply flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold
+           text-white shadow-md transition-all duration-150
+           bg-brand-orange hover:bg-brand-orange/90 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+}
+
+@utility btn-outline {
+  @apply flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium
+           bg-white shadow-xs transition-all duration-150 hover:shadow-sm active:scale-[0.98];
+}
 
 @layer base {
   body {
@@ -12,26 +74,5 @@
   input[type='number']::-webkit-inner-spin-button,
   input[type='number']::-webkit-outer-spin-button {
     opacity: 1;
-  }
-}
-
-@layer components {
-  .input-field {
-    @apply w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm
-           text-gray-800 shadow-sm transition-all duration-150
-           focus:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue/20
-           disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed;
-  }
-
-  .btn-primary {
-    @apply flex items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold
-           text-white shadow-md transition-all duration-150
-           bg-brand-orange hover:bg-brand-orange/90 active:scale-[0.98]
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
-  }
-
-  .btn-outline {
-    @apply flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium
-           bg-white shadow-sm transition-all duration-150 hover:shadow active:scale-[0.98];
   }
 }
