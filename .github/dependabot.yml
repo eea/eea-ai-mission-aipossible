@@ -55,6 +55,14 @@ updates:
     commit-message:
       prefix: "chore(ui)"
     groups:
+      # react and react-dom peer-depend on the same major, so they must move together
+      # (split major PRs #59/#61 each failed npm ci). Listed first: first match wins.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
       ui-dependencies:
         update-types:
           - "minor"
