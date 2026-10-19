@@ -1,0 +1,88 @@
+name: uv.lock upgrade
+
+# Dependabot's uv updater only moves the direct dependencies in pyproject.toml. Transitive
+# updates land in requirements.txt alone, which sync-requirements in tests.yml then reverts
+# from uv.lock, leaving empty PRs (#48, #49, #64). So upgrade the whole lock here instead and
+# keep a single PR open with the result.
+on:
+  schedule:
+    - cron: "30 5 * * 1" # Mondays 05:30 UTC, just before Dependabot
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write # to dispatch Tests / Security Scan on the PR branch
+
+env:
+  BRANCH: chore/uv-lock-upgrade
+  EXPORT_CMD: uv export --no-hashes --no-emit-project --no-annotate --format requirements-txt -o requirements.txt
+
+jobs:
+  upgrade:
+    name: Upgrade uv.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Upgrade uv.lock and regenerate requirements.txt
+        run: |
+          uv lock --upgrade
+          $EXPORT_CMD
+
+      - name: Write PR body
+        id: changes
+        run: |
+          if git diff --quiet -- uv.lock requirements.txt; then
+            echo "Everything is already up to date."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "Weekly \`uv lock --upgrade\`: every package that \`pyproject.toml\` allows to move,"
+            echo "including transitive ones. \`requirements.txt\` is regenerated from the new lock."
+            echo
+            echo "| Package | From | To |"
+            echo "|---|---|---|"
+            # Pair the -name==old / +name==new lines of the requirements.txt diff.
+            git diff -U0 -- requirements.txt | awk '
+              /^[-+][a-z0-9]/ {
+                line = substr($0, 2); sub(/ *;.*/, "", line); split(line, a, "==")
+                if (substr($0, 1, 1) == "-") old[a[1]] = a[2]; else new[a[1]] = a[2]
+                names[a[1]] = 1
+              }
+              END {
+                for (n in names) printf "| %s | %s | %s |\n", n, (n in old ? old[n] : "—"), (n in new ? new[n] : "—")
+              }' | sort
+            echo
+            echo "Exact pins in \`pyproject.toml\` (e.g. scrapy, playwright) are not moved here;"
+            echo "Dependabot bumps those. Tests and Security Scan are dispatched on this branch,"
+            echo "because pull_request workflows don't run for PRs opened with GITHUB_TOKEN."
+          } > "$RUNNER_TEMP/body.md"
+          cat "$RUNNER_TEMP/body.md"
+
+      - name: Open or update the PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -m "chore(deps): weekly uv.lock upgrade" -- uv.lock requirements.txt
+          # The branch only ever holds this one generated commit, so replace it each week.
+          git push --force origin "$BRANCH"
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$BRANCH" --label dependencies \
+              --title "chore(deps): weekly uv.lock upgrade" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          gh workflow run tests.yml --ref "$BRANCH"
+          gh workflow run security-scan.yml --ref "$BRANCH"
