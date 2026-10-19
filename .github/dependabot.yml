@@ -38,3 +38,24 @@ updates:
       - "security"
     commit-message:
       prefix: "chore(ci)"
+
+  # ui/ is built by the "UI build" job in tests.yml. Majors get their own PR so a
+  # breaking upgrade (like Tailwind 3 -> 4) isn't hidden inside a grouped bump.
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:30"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(ui)"
+    groups:
+      ui-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
