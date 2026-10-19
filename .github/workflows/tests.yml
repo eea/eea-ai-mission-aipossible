@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
   pull_request:
+  workflow_dispatch: # used by uv-lock-upgrade.yml to test its PR branch
 
 permissions:
   contents: read
