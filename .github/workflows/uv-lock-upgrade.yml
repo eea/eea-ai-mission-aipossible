@@ -12,7 +12,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write # to dispatch Tests / Security Scan on the PR branch
 
 env:
   BRANCH: chore/uv-lock-upgrade
@@ -61,8 +60,8 @@ jobs:
               }' | sort
             echo
             echo "Exact pins in \`pyproject.toml\` (e.g. scrapy, playwright) are not moved here;"
-            echo "Dependabot bumps those. Tests and Security Scan are dispatched on this branch,"
-            echo "because pull_request workflows don't run for PRs opened with GITHUB_TOKEN."
+            echo "Dependabot bumps those. Tests and Security Scan run on this PR but wait for"
+            echo "approval (Actions tab or \"Approve and run\") because a bot opened it."
           } > "$RUNNER_TEMP/body.md"
           cat "$RUNNER_TEMP/body.md"
 
@@ -84,5 +83,3 @@ jobs:
             gh pr create --base main --head "$BRANCH" --label dependencies \
               --title "chore(deps): weekly uv.lock upgrade" --body-file "$RUNNER_TEMP/body.md"
           fi
-          gh workflow run tests.yml --ref "$BRANCH"
-          gh workflow run security-scan.yml --ref "$BRANCH"
