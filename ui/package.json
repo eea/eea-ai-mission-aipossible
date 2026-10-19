@@ -19,7 +19,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.5.3",
+    "typescript": "^7.0.2",
     "vite": "^8.3.1"
   }
 }
