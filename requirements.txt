@@ -12,7 +12,7 @@ automat==25.4.16
 backports-zstd==1.8.0 ; python_full_version < '3.14'
 brotli==1.2.0 ; implementation_name != 'pypy'
 brotlicffi==1.2.0.2 ; implementation_name == 'pypy'
-certifi==2026.10.18
+certifi==2026.10.19
 cffi==2.1.1 ; implementation_name == 'pypy' or platform_python_implementation != 'PyPy'
 charset-normalizer==3.5.2
 click==8.5.0
