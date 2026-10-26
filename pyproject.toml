@@ -7,7 +7,7 @@ authors = [
     { name = "Nikolaos Pximadakis", email = "nikolaos.paximadakis@eea.europa.eu" },
 ]
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "scrapy==2.19.0",
     "scrapy-playwright==0.0.48",
@@ -49,7 +49,7 @@ select = ["E", "F", "W", "I", "B", "C", "D", "N", "Q", "RUF"]
 ignore = []
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 ignore_missing_imports = true
 check_untyped_defs = true
 warn_unused_ignores = true
