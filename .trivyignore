@@ -1,3 +1,17 @@
 # Temporary: Twisted fix is currently only available as a release candidate.
 # Twisted is pulled in via Scrapy. Revisit when a stable Twisted release is available.
 CVE-2026-42304
+
+# Temporary: Twisted 26.4.0 (via Scrapy); fix only in 26.10.0rc1 (release candidate).
+# XML stream (twisted.words.xish) and IRC are not used by the project; the Scrapy
+# Telnet console is disabled in adaptation_stories/settings.py.
+# Remove once a stable Twisted release ships.
+CVE-2026-115775
+CVE-2026-115776
+CVE-2026-115778
+
+# Temporary: filelock 4.1.0, only in the Python 3.10 resolution of uv.lock (the fixed
+# 4.2.x requires Python >=3.11; 3.11+ already resolves to 4.2.4). Only used by
+# tldextract (via Scrapy) for its cache lock. Remove when Python 3.10 support is dropped
+# (3.10 is EOL Oct 2026).
+CVE-2026-112940
