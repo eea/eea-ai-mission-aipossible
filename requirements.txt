@@ -28,7 +28,7 @@ greenlet==3.5.6
 h11==0.16.0
 httpcore2==2.16.0 ; sys_platform != 'emscripten'
 httpx2==2.16.0
-httpx2-jsfetch==1.0 ; python_full_version >= '3.12' and sys_platform == 'emscripten'
+httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
 hyperlink==21.0.0
 idna==3.20
 incremental==24.11.0
@@ -53,8 +53,7 @@ pycparser==3.12 ; implementation_name == 'pypy' or (implementation_name != 'PyPy
 pydantic==2.14.1
 pydantic-core==2.50.1
 pydispatcher==2.0.7 ; platform_python_implementation == 'CPython'
-pyee==13.0.1 ; python_full_version < '3.12'
-pyee==14.0.0 ; python_full_version >= '3.12'
+pyee==14.0.0
 pygments==2.21.0
 pyopenssl==26.4.0
 pypydispatcher==2.1.2 ; platform_python_implementation == 'PyPy'
