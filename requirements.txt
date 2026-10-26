@@ -49,7 +49,7 @@ playwright==1.64.1
 pluggy==1.7.0
 propcache==0.5.4
 protego==0.7.0
-pycparser==3.12 ; (implementation_name != 'PyPy' and platform_python_implementation != 'PyPy') or (implementation_name == 'pypy' and platform_python_implementation == 'PyPy')
+pycparser==3.12 ; implementation_name == 'pypy' or (implementation_name != 'PyPy' and implementation_name != 'pypy' and platform_python_implementation != 'PyPy')
 pydantic==2.14.1
 pydantic-core==2.50.1
 pydispatcher==2.0.7 ; platform_python_implementation == 'CPython'
