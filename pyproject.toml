@@ -12,7 +12,7 @@ dependencies = [
     "scrapy==2.19.0",
     "scrapy-playwright==0.0.48",
     "playwright==1.64.1",
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "openpyxl==3.1.5",
     "openai",
     "pydantic>=2.0.0,<3.0.0",
