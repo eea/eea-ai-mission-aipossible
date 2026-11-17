@@ -9,9 +9,9 @@ authors = [
 license = { file = "LICENSE" }
 requires-python = ">=3.13"
 dependencies = [
-    "scrapy==2.19.0",
+    "scrapy==2.20.0",
     "scrapy-playwright==0.0.48",
-    "playwright==1.64.1",
+    "playwright==1.65.1",
     "pytest==9.2.0",
     "openpyxl==3.1.5",
     "openai",
