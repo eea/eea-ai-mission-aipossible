@@ -5,8 +5,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:00"
       timezone: "UTC"
     open-pull-requests-limit: 10
@@ -17,8 +16,9 @@ updates:
       prefix: "chore(deps)"
     groups:
       python-dependencies:
-        patterns:
-          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     # pydantic pins an exact pydantic-core, so a lone pydantic-core bump is
     # unresolvable and only ever edits requirements.txt (reverted by the sync
     # job, leaving an empty PR). pydantic-core moves with pydantic in uv.lock.
@@ -28,8 +28,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:15"
       timezone: "UTC"
     open-pull-requests-limit: 5
@@ -38,14 +37,18 @@ updates:
       - "security"
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
 
   # ui/ is built by the "UI build" job in tests.yml. Majors get their own PR so a
   # breaking upgrade (like Tailwind 3 -> 4) isn't hidden inside a grouped bump.
   - package-ecosystem: "npm"
     directory: "/ui"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "06:30"
       timezone: "UTC"
     open-pull-requests-limit: 5
